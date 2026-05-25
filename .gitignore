@@ -1,0 +1,4 @@
+# VS Code local history (not for version control)
+.history
+# macOS
+.DS_Store
