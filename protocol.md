@@ -42,7 +42,7 @@ VSID = HKDF-SHA3-256(
 3. VSID must **never** be derived from an alias or a virtual identity.
 4. VSID must **never** be derived from a username directly.
 
-*Reference implementation:* `brigid-identity/src/vsid.rs` — `compute_vsid()`
+*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`
 
 ---
 
@@ -143,7 +143,7 @@ Client                          brigid-api                      brigid-store
 4. Check `aud` == expected `client_id`.
 5. Check `jti` not in `JtiStore` (anti-replay); insert it with TTL = `exp`.
 
-*Reference:* `brigid-oidc/src/token.rs` — `validate_token()`
+*Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/token.rs) — `validate_token()`
 
 ---
 
@@ -181,7 +181,7 @@ JWK Set containing the Ed25519 public key used for token signing.
 
 **Important implementation note:** `jsonwebtoken v9` (ring backend) expects the
 `DecodingKey` to be initialised with raw 32-byte public key bytes, **not**
-SubjectPublicKeyInfo DER. See `brigid-oidc/src/key.rs` — `decoding_key()`.
+SubjectPublicKeyInfo DER. See [`brigid-oidc/src/key.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/key.rs) — `decoding_key()`.
 
 ---
 
@@ -191,7 +191,7 @@ SubjectPublicKeyInfo DER. See `brigid-oidc/src/key.rs` — `decoding_key()`.
 
 Exposes the server's DID Web document, enabling DID-based identity resolution.
 
-*Reference:* `brigid-did/src/web.rs` — `did_web_document()`
+*Reference:* [`brigid-did/src/web.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-did/src/web.rs) — `did_web_document()`
 
 ---
 
@@ -218,7 +218,7 @@ Client                          brigid-api                  JtiStore (in-memory)
 - Blacklisted JTIs expire automatically at the token's `exp` — `JtiStore` is always bounded.
 - `POST /auth/logout` is protected by the `AuthenticatedClaims` extractor: malformed or expired tokens are rejected before the handler runs.
 
-*Reference:* `brigid-api/src/handlers/logout.rs`, `brigid-oidc/src/jti.rs`
+*Reference:* [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-api/src/routes/auth.rs), [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs)
 
 ---
 

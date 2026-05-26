@@ -81,22 +81,22 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** `jti` replay prevention in `JtiStore` (TTL = token `exp`); store evicts expired entries.
 - **Mitigation:** EdDSA signatures (Ed25519) over ID tokens; private key never leaves the server process.
 
-### 4.7 Session termination (logout)
+### 4.4 Session termination (logout)
 - **Endpoint:** `POST /auth/logout` — requires `Authorization: Bearer <token>`.
 - **Mitigation:** on logout, the token's `jti` is inserted into `JtiStore::blacklist()`. Subsequent calls with the same token are rejected by `is_blacklisted()` before any handler runs.
 - **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the JTI store is always bounded.
-- *Reference:* `brigid-oidc/src/jti.rs` — `blacklist()` / `is_blacklisted()`; `brigid-api/src/handlers/logout.rs`.
+- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()`; [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-api/src/routes/auth.rs).
 
-### 4.4 Storage (zero-trust)
+### 4.5 Storage (zero-trust)
 - **Mitigation:** `brigid-store` encrypts every sensitive field with AES-256-GCM + unique nonce before `INSERT`.
 - **Mitigation:** `MASTER_KEY` is never written to disk; loaded from env var or Docker secret.
 - **Mitigation:** HKDF-SHA3-256 used to derive per-context sub-keys from the master key.
 
-### 4.5 Cross-site scripting (XSS)
+### 4.6 Cross-site scripting (XSS)
 - **Mitigation:** `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{…}'; …` — no `unsafe-inline`.
 - **Mitigation:** nonce regenerated per request; injected into Leptos hydration `<script>` tags.
 
-### 4.6 Cross-origin requests (CORS)
+### 4.7 Cross-origin requests (CORS)
 - **Mitigation:** explicit origin allowlist in configuration; no `Access-Control-Allow-Origin: *`.
 
 ---
@@ -106,14 +106,14 @@ brig·id is a self-hosted identity provider (IdP) offering:
 These invariants are enforced in code and must be verified by auditors:
 
 1. **VSID stability:** same `(did_root, client_id, salt)` → same VSID; different `client_id` → different VSID.
-   - *Reference:* `brigid-identity/src/vsid.rs` — `compute_vsid()`
+   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`
 2. **VSID isolation:** VSID must never be derived from an alias or a virtual identity.
-   - *Reference:* `brigid-identity/src/root_id.rs` — `RootId::parse()` validates format.
+   - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
 3. **Zero raw secrets in storage:** `brigid-store` must never call SQLite `execute`/`fetch` without encrypted payloads.
-   - *Reference:* `brigid-store/src/store.rs` — all `insert_*` functions.
+   - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-store/src/store.rs) — all public store functions.
 4. **No secrets in logs:** `tracing` spans must not capture key material, WebAuthn private keys, or OIDC signing keys.
 5. **Single-use JWTs:** `jti` must be checked in `JtiStore` before a token is accepted.
-   - *Reference:* `brigid-oidc/src/jti.rs` — `check_and_insert()`.
+   - *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`.
 6. **Key zeroization:** `OidcSigningKey` inner `SigningKey` (ed25519-dalek) implements `ZeroizeOnDrop`.
 
 ---
