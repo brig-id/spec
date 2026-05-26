@@ -81,6 +81,12 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** `jti` replay prevention in `JtiStore` (TTL = token `exp`); store evicts expired entries.
 - **Mitigation:** EdDSA signatures (Ed25519) over ID tokens; private key never leaves the server process.
 
+### 4.7 Session termination (logout)
+- **Endpoint:** `POST /auth/logout` — requires `Authorization: Bearer <token>`.
+- **Mitigation:** on logout, the token's `jti` is inserted into `JtiStore::blacklist()`. Subsequent calls with the same token are rejected by `is_blacklisted()` before any handler runs.
+- **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the JTI store is always bounded.
+- *Reference:* `brigid-oidc/src/jti.rs` — `blacklist()` / `is_blacklisted()`; `brigid-api/src/handlers/logout.rs`.
+
 ### 4.4 Storage (zero-trust)
 - **Mitigation:** `brigid-store` encrypts every sensitive field with AES-256-GCM + unique nonce before `INSERT`.
 - **Mitigation:** `MASTER_KEY` is never written to disk; loaded from env var or Docker secret.
@@ -150,4 +156,4 @@ PQC hybrid signatures will be activated in a future phase.
 
 ---
 
-*Last updated: Phase 6 implementation. Review and expand at Phase 8 (audit readiness).*
+*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*

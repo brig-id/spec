@@ -195,4 +195,31 @@ Exposes the server's DID Web document, enabling DID-based identity resolution.
 
 ---
 
-*Last updated: Phase 6 implementation. Expand with full message flows at Phase 8.*
+## 8. Logout Flow
+
+```
+Client                          brigid-api                  JtiStore (in-memory)
+  │                                 │                               │
+  │─── POST /auth/logout ────────▶│                               │
+  │    Authorization: Bearer <jwt>  │                               │
+  │                                 │ decode + verify token         │
+  │                                 │ check is_blacklisted(jti) ──▶│
+  │                                 │ blacklist(jti, exp) ────────▶│ insert jti, TTL = exp
+  │◄── 204 No Content ────────────│                               │
+  │                                 │                               │
+  │─── (any request with same token)▶│                               │
+  │                                 │ check is_blacklisted(jti) ──▶│
+  │                                 │◄─────────────────── true ────│
+  │◄── 401 Unauthorized ───────────│                               │
+```
+
+### Security properties
+- The token is validated fully (signature, expiry, issuer, audience) before blacklisting.
+- Blacklisted JTIs expire automatically at the token's `exp` — `JtiStore` is always bounded.
+- `POST /auth/logout` is protected by the `AuthenticatedClaims` extractor: malformed or expired tokens are rejected before the handler runs.
+
+*Reference:* `brigid-api/src/handlers/logout.rs`, `brigid-oidc/src/jti.rs`
+
+---
+
+*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*

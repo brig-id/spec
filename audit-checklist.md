@@ -40,6 +40,10 @@ This audit covers:
   - *Check:* `brigid-oidc/src/jti.rs` — `JtiStore::check_and_insert()` prevents replay
 - [ ] Does the `sub` claim ever expose a username, alias, or raw DID?
   - *Check:* `brigid-oidc/src/token.rs` — `Claims::sub` must equal `vsid.to_string()`
+- [ ] Is a logged-out token (via `POST /auth/logout`) rejected on subsequent requests?
+  - *Check:* `brigid-oidc/src/jti.rs` — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
+- [ ] Is the JTI blacklist bounded (no unbounded growth)?
+  - *Check:* `brigid-oidc/src/jti.rs` — entries expire at token `exp`
 
 ### 2.3 Identity correlation
 - [ ] Can two relying parties correlate users via the `sub` claim?
@@ -100,6 +104,16 @@ This audit covers:
 - [ ] `X-Content-Type-Options: nosniff` is set
 - [ ] `X-Frame-Options: DENY` is set
 - [ ] `Strict-Transport-Security` is set
+- [ ] `POST /auth/logout` requires a valid `Authorization: Bearer` header
+- [ ] Logged-out tokens are rejected via `AuthenticatedClaims` before reaching handlers
+
+### Deployment (server-leaf)
+- [ ] Binary refuses to start if `BRIGID_MASTER_KEY` is absent or < 32 bytes
+- [ ] `BRIGID_MASTER_KEY` does not appear in startup logs
+- [ ] Container runs as non-root (`nonroot:nonroot`)
+- [ ] Docker image is distroless (no shell, no package manager)
+- [ ] Container filesystem is read-only (`read_only: true` in compose)
+- [ ] `BRIGID_MASTER_KEY` supplied via Docker secret, not plain env var, in production
 
 ---
 
@@ -111,7 +125,8 @@ Run the following before auditing:
 cargo audit                          # known CVEs
 cargo deny check                     # license + supply chain
 cargo clippy --all-targets --all-features -- -D warnings
-cargo llvm-cov --workspace --summary-only  # must be 100%
+cargo llvm-cov --workspace --summary-only  # must be ≥ 95% (100% on crypto)
+cargo cyclonedx                      # generate SBOM
 cargo +nightly fuzz run fuzz_decrypt -- -max_total_time=60  # in brigid-crypto
 ```
 
@@ -124,4 +139,4 @@ All security reports should be submitted via GitHub's private vulnerability repo
 
 ---
 
-*Last updated: Phase 6 implementation. Finalize and review at Phase 8.*
+*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*
