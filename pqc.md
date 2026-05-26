@@ -103,4 +103,4 @@ Using hybrids ensures:
 
 ---
 
-*Last updated: Phase 6 implementation. Expand at Phase 8 (audit readiness).*
+*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*

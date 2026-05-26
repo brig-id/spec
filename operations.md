@@ -48,7 +48,7 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 
 1. **Stop** the brig·id server (`SIGTERM`; wait for graceful shutdown).
 2. **Back up** the SQLite database file.
-3. Run the key rotation utility (to be implemented in Phase 7):
+3. Run the key rotation utility (to be implemented — see Phase 8 roadmap):
    ```bash
    leaf rotate-key --old-key "$OLD_KEY" --new-key "$NEW_KEY" --db /data/brigid.db
    ```
@@ -137,4 +137,4 @@ Key events to monitor via structured logs (`tracing` JSON output):
 
 ---
 
-*Last updated: Phase 6 implementation. Finalize at Phase 7 (deployment binary).*
+*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*
