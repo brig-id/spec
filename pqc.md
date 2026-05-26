@@ -34,7 +34,7 @@ are used simultaneously. A break in one does not compromise the other.
 **Hybrid combination:** shared secrets from X25519 and ML-KEM-768 are concatenated
 and fed into HKDF-SHA3-256 to produce the final shared key.
 
-*Reference:* `brigid-crypto/src/hybrid_kem.rs`
+*Reference:* [`src/kem.rs`](https://github.com/brig-id/crypto/blob/dev/src/kem.rs)
 
 ### 2.2 Signatures — ML-DSA-65 + Ed25519
 
@@ -50,7 +50,7 @@ and fed into HKDF-SHA3-256 to produce the final shared key.
 **Hybrid combination:** both signatures are produced independently and concatenated.
 Verification requires both to be valid.
 
-*Reference:* `brigid-crypto/src/hybrid_sig.rs`
+*Reference:* [`src/dsa.rs`](https://github.com/brig-id/crypto/blob/dev/src/dsa.rs)
 
 ---
 

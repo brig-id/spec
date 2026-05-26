@@ -29,7 +29,8 @@ for the private key.
 
 ## Decision
 
-In `brigid-oidc/src/key.rs`, `OidcSigningKey::decoding_key()` is implemented as:
+In [`brigid-oidc/src/key.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/key.rs),
+`OidcSigningKey::decoding_key()` is implemented as:
 
 ```rust
 pub(crate) fn decoding_key(&self) -> jsonwebtoken::DecodingKey {
@@ -64,7 +65,7 @@ which `ring` correctly parses for EdDSA signing.
 
 ## References
 
-- [ring source — Ed25519 public key format](https://github.com/briansmith/ring/blob/main/src/ec/suite_b/ecdsa/signing.rs)
-  (raw uncompressed point for Ed25519)
+- [ring source — Ed25519 public key format](https://github.com/briansmith/ring/blob/main/src/ec/curve25519/ed25519/signing.rs)
+  (raw 32-byte little-endian compressed public key, consistent with RFC 8032)
 - [jsonwebtoken v9 — eddsa.rs](https://github.com/Keats/jsonwebtoken/blob/master/src/crypto/eddsa.rs)
 - [ed25519-dalek — VerifyingKey::as_bytes()](https://docs.rs/ed25519-dalek/latest/ed25519_dalek/struct.VerifyingKey.html)
