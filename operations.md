@@ -80,9 +80,15 @@ For zero-downtime rotation:
 ### Suspected MASTER_KEY compromise
 
 1. **Immediately** stop all brig·id instances.
-2. Rotate the MASTER_KEY (see above) — this invalidates all encrypted data.
-3. Re-encrypt the database with the new key.
-4. Notify affected users to re-register their passkeys.
+2. Rotate the MASTER_KEY (see above) — this invalidates *forward confidentiality*
+   for any data encrypted before the rotation but does **not** automatically
+   re-encrypt existing ciphertext. Follow step 3 to do so.
+3. Re-encrypt the database with the new key (decrypt all rows with the old key,
+   re-encrypt with the new key). Until this step is complete, an attacker who
+   exfiltrated old ciphertext can still decrypt it with the old key.
+4. Passkey re-registration is **not** required — only public key material
+   (credential IDs and attestation) is stored; the passkey private key never
+   leaves the authenticator.
 5. Invalidate all active OIDC sessions at relying parties.
 6. Report to security contact (see `SECURITY.md`).
 
@@ -99,7 +105,10 @@ For zero-downtime rotation:
 ### Token replay attack detected
 
 If the `JtiStore` reports a replay:
-- Log the event with the full token claims.
+- Log only minimal non-PII fields: `jti`, `kid`, `aud`, `iss`, timestamps, and
+  a truncated HMAC of `sub` (never the raw `sub` value). **Never log the raw JWT
+  string or the full claims set** — `sub` is a VSID that functions as a stable
+  pseudonymous identifier and must be treated as PII.
 - The token is already rejected — no further action needed for that request.
 - Investigate the source IP for credential compromise.
 - Consider revoking the affected `client_id` if the RP is compromised.

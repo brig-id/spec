@@ -35,19 +35,19 @@ This audit covers:
 
 ### 2.2 Token forgery
 - [ ] Can an attacker forge an ID token without the server's Ed25519 private key?
-  - *Check:* `brigid-oidc/src/token.rs` — `validate_token()` verifies EdDSA signature
+  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
 - [ ] Can an attacker replay a valid ID token?
-  - *Check:* `brigid-oidc/src/jti.rs` — `JtiStore::check_and_insert()` prevents replay
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `JtiStore::check_and_insert()` prevents replay
 - [ ] Does the `sub` claim ever expose a username, alias, or raw DID?
-  - *Check:* `brigid-oidc/src/token.rs` — `Claims::sub` must equal `vsid.to_string()`
+  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`
 - [ ] Is a logged-out token (via `POST /auth/logout`) rejected on subsequent requests?
-  - *Check:* `brigid-oidc/src/jti.rs` — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
 - [ ] Is the JTI blacklist bounded (no unbounded growth)?
-  - *Check:* `brigid-oidc/src/jti.rs` — entries expire at token `exp`
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — entries expire at token `exp`
 
 ### 2.3 Identity correlation
 - [ ] Can two relying parties correlate users via the `sub` claim?
-  - *Check:* `brigid-identity/src/vsid.rs` — VSID includes `client_id` in HKDF `info`
+  - *Check:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/vsid.rs) — VSID includes `client_id` in HKDF `info`
 - [ ] Can VSID be derived from an alias?
   - *Check:* `brigid-identity` tests — `vsid_is_not_derived_from_alias`
 
@@ -73,7 +73,7 @@ This audit covers:
 
 ### 2.7 Transport security
 - [ ] Is TLS 1.2 accepted?
-  - *Check:* `server-leaf/src/main.rs` — `ServerConfig::builder_with_protocol_versions(&[&TLS13])`
+  - *Check:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/dev/src/main.rs) — `ServerConfig::builder_with_protocol_versions(&[&TLS13])`
 - [ ] Is OpenSSL in the dependency tree?
   - *Check:* `cargo tree | grep openssl` — must return empty
 
@@ -134,7 +134,7 @@ cargo +nightly fuzz run fuzz_decrypt -- -max_total_time=60  # in brigid-crypto
 
 ## 5. Coordinated Vulnerability Disclosure
 
-See [`SECURITY.md`](../crypto/SECURITY.md) for the CVD process and contact details.
+See [`SECURITY.md`](./SECURITY.md) for the CVD process and contact details.
 All security reports should be submitted via GitHub's private vulnerability reporting.
 
 ---
