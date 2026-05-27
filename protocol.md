@@ -138,13 +138,44 @@ Client                          brigid-api                      brigid-store
 
 ### Token validation (brigid-oidc)
 
+`brigid-oidc` exposes **two** validation paths with different replay semantics;
+choosing the right one is part of the protocol contract.
+
+#### Path A — `validate_token` (single-use consumption)
+
+Used when a token is meant to be consumed exactly once (e.g. a one-shot bearer
+hand-off, or any future flow where the relying party should not replay a
+previously seen token):
+
 1. Verify EdDSA signature using the server's `OidcSigningKey`.
-2. Check `exp` > now.
+2. Check `exp` > now (no clock leeway).
 3. Check `iss` == expected issuer.
 4. Check `aud` == expected `client_id`.
-5. Check `jti` not in `JtiStore` (anti-replay); insert it with TTL = `exp`.
+5. Atomically check `jti` not in `JtiStore` **and** insert it with TTL = `exp`.
+   A subsequent call with the same `jti` is rejected as a replay.
 
-*Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()`
+#### Path B — `decode_token` (bearer-style, reusable until `exp` or logout)
+
+Used by the `AuthenticatedClaims` extractor in `brigid-api` middleware to gate
+authenticated routes (e.g. `POST /auth/logout`). A bearer token must remain
+valid for multiple successive requests until it expires or is revoked, so this
+path does **not** insert into `JtiStore`:
+
+1. Verify EdDSA signature.
+2. Check `exp`, `iss`, `aud` as in Path A (no clock leeway).
+3. Check `jti` is **not** in `JtiStore::is_blacklisted()` (revocation check).
+   Logout writes the `jti` into the blacklist with TTL = `exp`, so any further
+   bearer use after logout is rejected.
+
+ID Tokens issued at `/auth/login/finish` are returned to the client as bearer
+credentials and are validated on every subsequent request via Path B. There is
+currently **no** production endpoint that calls Path A; `validate_token` is
+provided for future flows that need single-use semantics. The shared `JtiStore`
+remains bounded because both paths key on `jti` with `TTL = exp` and expired
+entries are evicted on access.
+
+*Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`;
+[`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` extractor (Path B).
 
 ---
 
