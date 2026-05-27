@@ -73,7 +73,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 ### 4.1 Transport layer
 - **Mitigation:** TLS 1.3 minimum, configured via rustls `ServerConfig::builder_with_protocol_versions(&[&TLS13])`. No OpenSSL-backed TLS connections; openssl-sys appears as a transitive dependency of `webauthn-rs-core` (via `webauthn-attestation-ca`) for X.509 attestation certificate parsing — not for network connections.
   - *Verify:* run `cargo deny check bans`; the `deny.toml` skip-tree exception for `openssl-sys` documents this path. `cargo tree -i openssl-sys` shows it present; `cargo deny check bans` confirms it is allowed only as an attestation-parsing dep, not for TLS.
-  - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/dev/src/main.rs) — `rustls::ServerConfig` construction.
+  - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs) — `rustls::ServerConfig` construction.
 - **HSTS** enforced via `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
 
 ### 4.2 Authentication endpoint (`/auth/*`)
@@ -90,7 +90,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Endpoint:** `POST /auth/logout` — requires `Authorization: Bearer <token>`.
 - **Mitigation:** on logout, the token's `jti` is inserted into `JtiStore::blacklist()`. Subsequent calls with the same token are rejected by `is_blacklisted()` before any handler runs.
 - **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the JTI store is always bounded.
-- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()`; [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-api/src/routes/auth.rs).
+- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()`; [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs).
 
 ### 4.5 Storage (zero-trust)
 - **Mitigation:** `brigid-store` encrypts every sensitive field with AES-256-GCM + unique nonce before `INSERT`.
@@ -112,17 +112,17 @@ brig·id is a self-hosted identity provider (IdP) offering:
 These invariants are enforced in code and must be verified by auditors:
 
 1. **VSID stability:** same `(did_root, client_id, salt)` → same VSID; different `client_id` → different VSID.
-   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`
+   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`
    - *Verify:* `vsid_is_stable` and `vsid_non_correlable_across_clients` tests in the same file.
 2. **VSID isolation:** VSID must never be derived from an alias or a virtual identity.
-   - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
+   - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
    - *Verify:* `vsid_never_derived_from_alias` test asserts `compute_vsid` rejects non-`did:web:` inputs with an error.
 3. **Zero raw secrets in storage:** `brigid-store` must never call SQLite `execute`/`fetch` without encrypted payloads.
-   - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-store/src/store.rs) — all public store functions.
+   - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — all public store functions.
    - *Verify:* `dump_contains_no_plaintext` integration test in `brigid-store`.
 4. **No secrets in logs:** `tracing` spans must not capture key material, WebAuthn private keys, or OIDC signing keys.
 5. **Single-use JWTs:** `jti` must be checked in `JtiStore` before a token is accepted.
-   - *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`.
+   - *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`.
    - *Verify:* `replayed_jti_is_rejected` test in the same file.
 6. **Key zeroization:** `OidcSigningKey` inner `SigningKey` (ed25519-dalek) implements `ZeroizeOnDrop`.
 
