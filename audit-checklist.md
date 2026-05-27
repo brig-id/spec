@@ -1,6 +1,6 @@
 # Audit Checklist — brig·id
 
-> **Audience:** third-party security auditors.
+> **Audience:** external security auditors and advanced contributors.
 > Use this checklist to guide the security review of brig·id.
 > Each item references the relevant source file and function.
 

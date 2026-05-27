@@ -46,7 +46,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 | Component | Trust level | Notes |
 |---|---|---|
-| `BRIGID_MASTER_KEY` / `BRIGID_MASTER_KEY_FILE` env var | **Root of trust** | Must be 32 random bytes; loaded once at startup via env var or Docker secret file |
+| `BRIGID_MASTER_KEY` / `BRIGID_MASTER_KEY_FILE` env var | **Root of trust** | Must be a 64-character ASCII hex string encoding 32 random bytes (single trailing newline tolerated when read via `BRIGID_MASTER_KEY_FILE`); loaded once at startup via env var or Docker secret file |
 | TLS certificate | High | Controls transport security |
 | SQLite database file | Low (zero-trust) | Raw dump must reveal no readable secrets |
 | Client browser | Untrusted | |
