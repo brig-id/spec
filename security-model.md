@@ -34,8 +34,11 @@ brig·id is a self-hosted identity provider (IdP) offering:
      │                    │
 ┌────▼────┐          ┌────▼────────────────────────────┐
 │ brigid- │          │ brigid-store (SQLite)           │
-│ oidc    │          │ Every field encrypted (AES-256- │
-│ (JWT)   │          │ GCM) before INSERT              │
+│ oidc    │          │ Sensitive fields encrypted      │
+│ (JWT)   │          │ (AES-256-GCM) before INSERT;    │
+│         │          │ row metadata (created_at,       │
+│         │          │ HKDF-SHA3-256 username_index)   │
+│         │          │ stored in plaintext for query   │
 └─────────┘          └─────────────────────────────────┘
 ```
 

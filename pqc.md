@@ -27,7 +27,7 @@ are used simultaneously. A break in one does not compromise the other.
 | Standard | FIPS 203 (NIST, August 2024) |
 | Classical component | X25519 (Diffie-Hellman on Curve25519) |
 | PQC component | ML-KEM-768 (Kyber-768) |
-| Security level | ~128-bit classical, Level 3 PQC (~192-bit quantum) |
+| Security level | ~128-bit classical (X25519); NIST Level 3 PQC (ML-KEM-768 — strength comparable to AES-192 key search) |
 | Public key size | 1184 bytes (ML-KEM-768) + 32 bytes (X25519) |
 | Ciphertext size | 1088 bytes (ML-KEM-768) + 32 bytes (X25519 ephemeral) |
 
@@ -43,7 +43,7 @@ and fed into HKDF-SHA3-256 to produce the final shared key.
 | Standard | FIPS 204 (NIST, August 2024) |
 | Classical component | Ed25519 (RFC 8032) |
 | PQC component | ML-DSA-65 (Dilithium-65) |
-| Security level | Level 3 (~192-bit quantum) |
+| Security level | NIST Level 3 (ML-DSA-65 — strength comparable to SHA-384 / AES-192 collision resistance per FIPS 204) |
 | Public key size | 1952 bytes (ML-DSA-65) + 32 bytes (Ed25519) |
 | Signature size | 3309 bytes (ML-DSA-65) + 64 bytes (Ed25519) |
 

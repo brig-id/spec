@@ -28,7 +28,7 @@ The 64-character hex string is the value of `BRIGID_MASTER_KEY`.
 ```yaml
 secrets:
   master_key:
-    external: true   # created with: docker secret create master_key <(openssl rand -hex 32)
+    external: true   # created with: openssl rand -hex 32 | docker secret create master_key -
 
 services:
   leaf:
