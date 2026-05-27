@@ -151,16 +151,19 @@ Client                          brigid-api                      brigid-store
 
 ### `GET /.well-known/openid-configuration`
 
-Standard OIDC Discovery document. Key fields:
+Limited OIDC Discovery document (non-standard profile). brig·id uses WebAuthn
+instead of the standard OAuth 2.0 Authorization Code flow. Standard OIDC fields
+that do not apply to the WebAuthn flow are omitted from the response.
 
-| Field | Value |
-|---|---|
-| `issuer` | `https://{domain}` |
-| `authorization_endpoint` | `https://{domain}/auth/login/begin` |
-| `token_endpoint` | `https://{domain}/auth/login/finish` |
-| `jwks_uri` | `https://{domain}/.well-known/jwks.json` |
-| `id_token_signing_alg_values_supported` | `["EdDSA"]` |
-| `subject_types_supported` | `["pairwise"]` |
+| Field | Value | Notes |
+|---|---|---|
+| `issuer` | `https://{domain}` | |
+| `jwks_uri` | `https://{domain}/.well-known/jwks.json` | |
+| `response_types_supported` | `["id_token"]` | |
+| `subject_types_supported` | `["public"]` | VSID is opaque per RP |
+| `id_token_signing_alg_values_supported` | `["EdDSA"]` | |
+| `authorization_endpoint` | *omitted* | Not applicable — use `POST /auth/login/begin` |
+| `token_endpoint` | *omitted* | Not applicable — use `POST /auth/login/finish` |
 
 ### `GET /.well-known/jwks.json`
 

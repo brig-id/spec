@@ -21,6 +21,10 @@ The 64-character hex string is the value of `BRIGID_MASTER_KEY`.
 ### Supplying the key at runtime
 
 **Docker Compose (recommended):**
+
+> **Note:** The following is illustrative pseudoconfig only. Adapt to your deployment
+> environment; do not use verbatim in production without review.
+
 ```yaml
 secrets:
   master_key:
@@ -67,6 +71,7 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 
 The OIDC signing key (`OidcSigningKey`) is generated in memory at startup from the
 MASTER_KEY-derived entropy. Rotating the MASTER_KEY implicitly rotates the signing key.
+*Implementation:* [`brigid-crypto` — `hkdf::derive_user_key`](https://github.com/brig-id/crypto/blob/dev/src/hkdf.rs); called at server startup in [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/dev/src/main.rs).
 
 For zero-downtime rotation:
 1. Add the new signing key to the JWKS endpoint (dual-key mode — planned Phase B).
@@ -80,9 +85,9 @@ For zero-downtime rotation:
 ### Suspected MASTER_KEY compromise
 
 1. **Immediately** stop all brig·id instances.
-2. Rotate the MASTER_KEY (see above) — this invalidates *forward confidentiality*
-   for any data encrypted before the rotation but does **not** automatically
-   re-encrypt existing ciphertext. Follow step 3 to do so.
+2. Rotate the MASTER_KEY (see above) — this limits future exposure but does **not** restore
+   confidentiality for data encrypted before the compromise; all data encrypted under the
+   compromised key must be treated as exposed. Follow step 3 to re-encrypt.
 3. Re-encrypt the database with the new key (decrypt all rows with the old key,
    re-encrypt with the new key). Until this step is complete, an attacker who
    exfiltrated old ciphertext can still decrypt it with the old key.
