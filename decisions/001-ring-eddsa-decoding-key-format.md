@@ -29,7 +29,7 @@ for the private key.
 
 ## Decision
 
-In [`brigid-oidc/src/key.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/key.rs),
+In [`brigid-oidc/src/key.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/key.rs),
 `OidcSigningKey::decoding_key()` is implemented as:
 
 ```rust

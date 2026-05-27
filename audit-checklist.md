@@ -35,19 +35,19 @@ This audit covers:
 
 ### 2.2 Token forgery
 - [ ] Can an attacker forge an ID token without the server's Ed25519 private key?
-  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
+  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
 - [ ] Can an attacker replay a valid ID token?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `JtiStore::check_and_insert()` prevents replay
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `JtiStore::check_and_insert()` prevents replay
 - [ ] Does the `sub` claim ever expose a username, alias, or raw DID?
-  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`
+  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`
 - [ ] Is a logged-out token (via `POST /auth/logout`) rejected on subsequent requests?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
 - [ ] Is the JTI blacklist bounded (no unbounded growth)?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-oidc/src/jti.rs) — entries expire at token `exp`
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — entries expire at token `exp`
 
 ### 2.3 Identity correlation
 - [ ] Can two relying parties correlate users via the `sub` claim?
-  - *Check:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/vsid.rs) — VSID includes `client_id` in HKDF `info`
+  - *Check:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — VSID includes `client_id` in HKDF `info`
 - [ ] Can VSID be derived from an alias?
   - *Check:* `brigid-identity` tests — `vsid_never_derived_from_alias`
 
@@ -73,7 +73,7 @@ This audit covers:
 
 ### 2.7 Transport security
 - [ ] Is TLS 1.2 rejected? / Is TLS 1.3 minimum enforced?
-  - *Check:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/dev/src/main.rs) — `ServerConfig::builder_with_protocol_versions(&[&TLS13])`
+  - *Check:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs) — `ServerConfig::builder_with_protocol_versions(&[&TLS13])`
 - [ ] Is OpenSSL in the dependency tree?
   - *Check:* `cargo tree -i openssl-sys` — present as transitive dep of webauthn-rs-core (X.509 attestation parsing); must NOT be used for TLS (`cargo deny check bans` confirms)
 
@@ -119,15 +119,48 @@ This audit covers:
 
 ## 4. Automated Checks
 
-Run the following before auditing:
+### Required tooling
+
+Install once before running the checks below (Rust ≥ 1.95 stable + nightly):
 
 ```bash
+rustup toolchain install stable nightly
+rustup target add wasm32-unknown-unknown            # for brigid-ui (Leptos)
+cargo install --locked cargo-audit cargo-deny cargo-llvm-cov cargo-cyclonedx
+cargo +nightly install --locked cargo-fuzz
+# System linker required by the workspaces' `.cargo/config.toml`:
+sudo apt-get install -y mold
+```
+
+The brig·id devcontainer (`brig-id/.dev/.devcontainer/`) provides all of the
+above out of the box.
+
+### Commands and working directories
+
+Each command must be run from the listed repository checkout. Clone all
+sibling repositories into the same parent directory (the layout the
+`brig-id/.dev` workspace expects); the reusable workflows in
+`brig-id/.github` invoke the same commands from each repo's CI.
+
+```bash
+# In brig-id/crypto:
 cargo audit                          # known CVEs
 cargo deny check                     # license + supply chain
 cargo clippy --all-targets --all-features -- -D warnings
-cargo llvm-cov --workspace --summary-only  # must be ≥ 95% (100% on crypto)
-cargo cyclonedx                      # generate SBOM
-cargo +nightly fuzz run fuzz_decrypt -- -max_total_time=60  # in brigid-crypto
+cargo llvm-cov --summary-only        # crypto target: 100% (Phase 1)
+cargo +nightly fuzz run fuzz_decrypt -- -max_total_time=60
+
+# In brig-id/core (Cargo workspace under crates/):
+cargo audit
+cargo deny check
+cargo clippy --all-targets --all-features -- -D warnings
+cargo llvm-cov --workspace --summary-only   # workspace target: ≥ 95%
+
+# In brig-id/server-leaf:
+cargo audit
+cargo deny check
+cargo clippy --all-targets -- -D warnings
+cargo cyclonedx                      # generate CycloneDX SBOM
 ```
 
 ---

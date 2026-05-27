@@ -24,6 +24,13 @@ The 64-character hex string is the value of `BRIGID_MASTER_KEY`.
 
 > **Note:** The following is illustrative pseudoconfig only. Adapt to your deployment
 > environment; do not use verbatim in production without review.
+>
+> The snippet below uses **Docker Swarm** secrets (`external: true`, populated
+> with `docker secret create`). Plain `docker compose` deployments not running
+> in Swarm mode must instead use **file-based secrets** (`file: ./secrets/master_key`
+> with the key material in a file the container reads via
+> `BRIGID_MASTER_KEY_FILE`), or supply the env var from a `.env` file with
+> filesystem permissions restricted to the orchestrator account.
 
 ```yaml
 secrets:
@@ -52,14 +59,28 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 
 1. **Stop** the brig·id server (`SIGTERM`; wait for graceful shutdown).
 2. **Back up** the SQLite database file.
-3. Run the key rotation utility (to be implemented — see Phase 8 roadmap):
+3. Run the key rotation utility (to be implemented — see Phase 8 roadmap).
+   The CLI **must not** accept key material as command-line arguments —
+   `argv` is visible to other users via `ps`, leaks into shell history,
+   crash reports, and audit logs. Pass keys as file paths (Docker secret
+   mount points), via dedicated environment variables read once and zeroized,
+   or via stdin:
    ```bash
-   leaf rotate-key --old-key "$OLD_KEY" --new-key "$NEW_KEY" --db /data/brigid.db
+   # File-based (preferred when keys live in Docker/Compose secrets):
+   leaf rotate-key \
+     --old-key-file /run/secrets/master_key.old \
+     --new-key-file /run/secrets/master_key \
+     --db /data/brigid.db
+
+   # Stdin-based (interactive operator):
+   printf '%s\n%s\n' "$OLD_KEY_HEX" "$NEW_KEY_HEX" | \
+     leaf rotate-key --keys-from-stdin --db /data/brigid.db
    ```
 4. Update the Docker secret:
    ```bash
    docker secret rm master_key
-   printf "%s" "$NEW_KEY" | docker secret create master_key -
+   # Pipe from a file or stdin — never echo the key on the command line:
+   docker secret create master_key /path/to/new_master_key.bin
    ```
 5. **Restart** the server.
 6. Verify with `curl https://example.com/health`.
@@ -71,7 +92,7 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 
 The OIDC signing key (`OidcSigningKey`) is generated in memory at startup from the
 MASTER_KEY-derived entropy. Rotating the MASTER_KEY implicitly rotates the signing key.
-*Implementation:* [`brigid-crypto` — `hkdf::derive_user_key`](https://github.com/brig-id/crypto/blob/dev/src/hkdf.rs); called at server startup in [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/dev/src/main.rs).
+*Implementation:* [`brigid-crypto` — `hkdf::derive_user_key`](https://github.com/brig-id/crypto/blob/350892951381f57e34d3ce9f983915860431c063/src/hkdf.rs); called at server startup in [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs).
 
 For zero-downtime rotation:
 1. Add the new signing key to the JWKS endpoint (dual-key mode — planned Phase B).
