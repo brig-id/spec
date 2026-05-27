@@ -49,13 +49,13 @@ This audit covers:
 - [ ] Can two relying parties correlate users via the `sub` claim?
   - *Check:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/dev/crates/brigid-identity/src/vsid.rs) — VSID includes `client_id` in HKDF `info`
 - [ ] Can VSID be derived from an alias?
-  - *Check:* `brigid-identity` tests — `vsid_is_not_derived_from_alias`
+  - *Check:* `brigid-identity` tests — `vsid_never_derived_from_alias`
 
 ### 2.4 Storage compromise
 - [ ] Does a raw SQLite dump reveal any readable secrets?
   - *Check:* `brigid-store/src/store.rs` — all `insert_*` functions encrypt before write
 - [ ] Is the nonce unique per ciphertext?
-  - *Check:* `brigid-crypto/src/aes_gcm.rs` — nonce generated via `OsRng` per call
+  - *Check:* `brigid-crypto/src/aes.rs` — nonce generated via `OsRng` per call
 
 ### 2.5 Key material exposure
 - [ ] Can the `BRIGID_MASTER_KEY` appear in logs, errors, or panics?
@@ -72,10 +72,10 @@ This audit covers:
   - *Check:* Leptos escapes all dynamic values by default
 
 ### 2.7 Transport security
-- [ ] Is TLS 1.2 accepted?
+- [ ] Is TLS 1.2 rejected? / Is TLS 1.3 minimum enforced?
   - *Check:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/dev/src/main.rs) — `ServerConfig::builder_with_protocol_versions(&[&TLS13])`
 - [ ] Is OpenSSL in the dependency tree?
-  - *Check:* `cargo tree | grep openssl` — must return empty
+  - *Check:* `cargo tree -i openssl-sys` — present as transitive dep of webauthn-rs-core (X.509 attestation parsing); must NOT be used for TLS (`cargo deny check bans` confirms)
 
 ---
 
