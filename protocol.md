@@ -160,7 +160,7 @@ that do not apply to the WebAuthn flow are omitted from the response.
 | `issuer` | `https://{domain}` | |
 | `jwks_uri` | `https://{domain}/.well-known/jwks.json` | |
 | `response_types_supported` | `["id_token"]` | |
-| `subject_types_supported` | `["public"]` | VSID is opaque per RP |
+| `subject_types_supported` | `["pairwise"]` | VSID is pairwise — different per relying party |
 | `id_token_signing_alg_values_supported` | `["EdDSA"]` | |
 | `authorization_endpoint` | *omitted* | Not applicable — use `POST /auth/login/begin` |
 | `token_endpoint` | *omitted* | Not applicable — use `POST /auth/login/finish` |

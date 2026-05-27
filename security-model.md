@@ -68,8 +68,8 @@ brig·id is a self-hosted identity provider (IdP) offering:
 ## 4. Attack Surfaces
 
 ### 4.1 Transport layer
-- **Mitigation:** TLS 1.3 minimum, configured via rustls `ServerConfig::builder_with_protocol_versions(&[&TLS13])`. No OpenSSL in the dependency tree.
-  - *Verify:* run `cargo deny check bans`; the `deny.toml` skip-tree exception for `openssl-sys` confirms the only OpenSSL path is the un-activated optional feature of `webauthn-rs-core` — OpenSSL is not linked.
+- **Mitigation:** TLS 1.3 minimum, configured via rustls `ServerConfig::builder_with_protocol_versions(&[&TLS13])`. No OpenSSL-backed TLS connections; openssl-sys appears as a transitive dependency of `webauthn-rs-core` (via `webauthn-attestation-ca`) for X.509 attestation certificate parsing — not for network connections.
+  - *Verify:* run `cargo deny check bans`; the `deny.toml` skip-tree exception for `openssl-sys` documents this path. `cargo tree -i openssl-sys` shows it present; `cargo deny check bans` confirms it is allowed only as an attestation-parsing dep, not for TLS.
   - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/dev/src/main.rs) — `rustls::ServerConfig` construction.
 - **HSTS** enforced via `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
 
