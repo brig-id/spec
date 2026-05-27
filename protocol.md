@@ -11,7 +11,8 @@
 | Purpose | Algorithm | Key size | Standard |
 |---|---|---|---|
 | Symmetric encryption | AES-256-GCM | 256-bit key, 96-bit nonce | NIST SP 800-38D |
-| Key derivation | HKDF-SHA3-256 | 256-bit output | RFC 5869 |
+| Key derivation | HKDF | 256-bit output | RFC 5869 |
+| Hash function (HKDF + general) | SHA3-256 | 256-bit digest | FIPS 202 |
 | Classical signatures (OIDC) | Ed25519 | 256-bit private key | RFC 8032 |
 | PQC KEM | ML-KEM-768 + X25519 (hybrid) | 1184-byte public key | FIPS 203 |
 | PQC signatures | ML-DSA-65 + Ed25519 (hybrid) | 1952-byte public key | FIPS 204 |
