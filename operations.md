@@ -1,6 +1,8 @@
 # Operations — brig·id
 
-> **Audience:** operators and security auditors.
+> **Audience:** external security auditors and advanced contributors
+> (operators running brig·id in production are the primary consumers of
+> sections 1–3).
 > This document describes operational procedures: key rotation, incident response,
 > and deployment security.
 
