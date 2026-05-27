@@ -78,9 +78,16 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    ```
 4. Update the Docker secret:
    ```bash
+   # Generate the new MASTER_KEY as a 64-character ASCII hex string
+   # (32 bytes encoded). `BRIGID_MASTER_KEY_FILE` reads the file as text and
+   # tolerates a single trailing newline; the file must NOT contain raw
+   # binary or any other encoding.
+   NEW_KEY_HEX="$(openssl rand -hex 32)"
+
    docker secret rm master_key
-   # Pipe from a file or stdin — never echo the key on the command line:
-   docker secret create master_key /path/to/new_master_key.bin
+   # Pipe from stdin so the key never appears on argv or in shell history.
+   printf '%s' "$NEW_KEY_HEX" | docker secret create master_key -
+   unset NEW_KEY_HEX
    ```
 5. **Restart** the server.
 6. Verify with `curl https://example.com/health`.

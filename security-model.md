@@ -83,7 +83,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 ### 4.3 Token issuance
 - **Mitigation:** `sub` claim = VSID (derived from `(did_root, client_id, salt)`) — stable and opaque per RP.
-- **Mitigation:** `jti` replay prevention in `JtiStore` (TTL = token `exp`); store evicts expired entries.
+- **Mitigation:** every issued ID Token carries a unique `jti` (UUID v4), bounded lifetime via `exp`, and is rejected once blacklisted by logout (see 4.4). The `JtiStore` evicts expired entries so it is always bounded.
 - **Mitigation:** EdDSA signatures (Ed25519) over ID tokens; private key never leaves the server process.
 
 ### 4.4 Session termination (logout)
@@ -121,9 +121,11 @@ These invariants are enforced in code and must be verified by auditors:
    - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — all public store functions.
    - *Verify:* `dump_contains_no_plaintext` integration test in `brigid-store`.
 4. **No secrets in logs:** `tracing` spans must not capture key material, WebAuthn private keys, or OIDC signing keys.
-5. **Single-use JWTs:** `jti` must be checked in `JtiStore` before a token is accepted.
-   - *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`.
-   - *Verify:* `replayed_jti_is_rejected` test in the same file.
+5. **JWT replay control:** every accepted token MUST pass through one of the two `brigid-oidc` validation paths.
+   - **Bearer path** (production middleware): `decode_token` verifies the signature, standard claims, and consults `JtiStore::is_blacklisted()`. The token remains usable for repeated requests until `exp` or until logout writes its `jti` to the blacklist.
+   - **Single-use path** (reserved for one-shot consumption): `validate_token` performs the same checks plus an atomic `JtiStore::check_and_insert()`, so a second call with the same `jti` is rejected as a replay.
+   - *Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`; [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`, `is_blacklisted()`.
+   - *Verify:* `replayed_jti_is_rejected` test in `jti.rs` (single-use path) and the logout integration test in `brigid-api` (bearer path).
 6. **Key zeroization:** `OidcSigningKey` inner `SigningKey` (ed25519-dalek) implements `ZeroizeOnDrop`.
 
 ---

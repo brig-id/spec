@@ -37,7 +37,8 @@ This audit covers:
 - [ ] Can an attacker forge an ID token without the server's Ed25519 private key?
   - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
 - [ ] Can an attacker replay a valid ID token?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `JtiStore::check_and_insert()` prevents replay
+  - *Check (single-use path):* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()` calls `JtiStore::check_and_insert()` so a second presentation of the same `jti` is rejected.
+  - *Check (bearer path):* [`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` calls `decode_token()`; bearer tokens are reusable until `exp` or logout-driven blacklist entry, and the auditor must confirm `decode_token` does NOT insert into `JtiStore` (otherwise legitimate repeated requests would be locked out).
 - [ ] Does the `sub` claim ever expose a username, alias, or raw DID?
   - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`
 - [ ] Is a logged-out token (via `POST /auth/logout`) rejected on subsequent requests?
