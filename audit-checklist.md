@@ -95,7 +95,10 @@ This audit covers:
 
 ### OIDC
 - [ ] `exp` is always set and checked
-- [ ] `jti` is always generated (UUID v4) and stored in `JtiStore`
+- [ ] `jti` is always generated (UUID v4) and persisted by `brigid-store` on the
+      single-use validation / logout paths (the in-process `JtiStore` is only
+      the fast-path cache; bearer tokens validated against persisted claims are
+      not inserted into `JtiStore` itself)
 - [ ] `JtiStore` evicts expired entries (bounded growth)
 - [ ] `aud` is verified against `expected_client_id`
 
@@ -109,7 +112,10 @@ This audit covers:
 - [ ] Logged-out tokens are rejected via `AuthenticatedClaims` before reaching handlers
 
 ### Deployment (server-leaf)
-- [ ] Binary refuses to start if `BRIGID_MASTER_KEY` is absent or < 32 bytes
+- [ ] Binary refuses to start if `BRIGID_MASTER_KEY` (or `BRIGID_MASTER_KEY_FILE`)
+      is absent, is not a 64-character ASCII hex string, or does not decode to
+      exactly 32 bytes (see `security-model.md` §6 and `operations.md` for the
+      authoritative loader contract)
 - [ ] `BRIGID_MASTER_KEY` does not appear in startup logs
 - [ ] Container runs as non-root (`nonroot:nonroot`)
 - [ ] Docker image is distroless (no shell, no package manager)

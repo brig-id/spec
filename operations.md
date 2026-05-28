@@ -58,27 +58,42 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 ### MASTER_KEY rotation procedure
 
 > ⚠️ Key rotation requires re-encrypting all data in the database. Plan for downtime.
+>
+> The steps below MUST be followed in order. Re-encrypting the database before
+> the new key is committed as a Docker secret would leave the data wrapped
+> under a key the running service no longer holds, making it unrecoverable.
 
 1. **Stop** the brig·id server (`SIGTERM`; wait for graceful shutdown).
 2. **Back up** the SQLite database file.
-3. Run the key rotation utility (to be implemented — see Phase 8 roadmap).
-   The CLI **must not** accept key material as command-line arguments —
-   `argv` is visible to other users via `ps`, leaks into shell history,
-   crash reports, and audit logs. Pass keys as file paths (Docker secret
-   mount points), via dedicated environment variables read once and zeroized,
-   or via stdin:
+3. **Generate the new MASTER_KEY** and stage it where the rotation utility
+   can read it (file path or stdin — never as a shell argument):
+   ```bash
+   # 64-character ASCII hex = 32 bytes after decoding.
+   NEW_KEY_HEX="$(openssl rand -hex 32)"
+
+   # Stage on disk with restrictive permissions for the rotate-key step.
+   install -m 600 /dev/null /run/secrets/master_key.new
+   printf '%s' "$NEW_KEY_HEX" > /run/secrets/master_key.new
+   ```
+4. **Re-encrypt the database** with the rotation utility (to be implemented —
+   see Phase 8 roadmap). The CLI **must not** accept key material as
+   command-line arguments — `argv` is visible to other users via `ps`, leaks
+   into shell history, crash reports, and audit logs. Pass keys as file paths
+   (Docker secret mount points), via dedicated environment variables read once
+   and zeroized, or via stdin:
    ```bash
    # File-based (preferred when keys live in Docker/Compose secrets):
    leaf rotate-key \
-     --old-key-file /run/secrets/master_key.old \
-     --new-key-file /run/secrets/master_key \
+     --old-key-file /run/secrets/master_key \
+     --new-key-file /run/secrets/master_key.new \
      --db /data/brigid.db
 
    # Stdin-based (interactive operator):
    printf '%s\n%s\n' "$OLD_KEY_HEX" "$NEW_KEY_HEX" | \
      leaf rotate-key --keys-from-stdin --db /data/brigid.db
    ```
-4. Update the Docker secret.
+5. **Publish the new key to the orchestrator** so the service restarts with the
+   matching key material.
 
    Docker Swarm does **not** allow `docker secret rm` on a secret that is still
    referenced by a service, even if its tasks are stopped. The supported
