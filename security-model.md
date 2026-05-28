@@ -133,7 +133,9 @@ These invariants are enforced in code and must be verified by auditors:
 ## 6. Key Material Lifecycle
 
 ```
-Startup: BRIGID_MASTER_KEY loaded from env
+Startup: BRIGID_MASTER_KEY (env var)  OR  BRIGID_MASTER_KEY_FILE (Docker/Swarm/K8s secret file)
+         ↓
+         loader validates 64-char ASCII hex, decodes to 32 bytes
          ↓
          HKDF derives per-context keys (storage, token signing)
          ↓

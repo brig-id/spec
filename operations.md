@@ -78,7 +78,13 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    printf '%s\n%s\n' "$OLD_KEY_HEX" "$NEW_KEY_HEX" | \
      leaf rotate-key --keys-from-stdin --db /data/brigid.db
    ```
-4. Update the Docker secret:
+4. Update the Docker secret.
+
+   Docker Swarm does **not** allow `docker secret rm` on a secret that is still
+   referenced by a service, even if its tasks are stopped. The supported
+   procedure is therefore a **two-name rotation**: create a new secret under a
+   new name, update the service to use it, then delete the old secret.
+
    ```bash
    # Generate the new MASTER_KEY as a 64-character ASCII hex string
    # (32 bytes encoded). `BRIGID_MASTER_KEY_FILE` reads the file as text and
@@ -86,11 +92,32 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    # binary or any other encoding.
    NEW_KEY_HEX="$(openssl rand -hex 32)"
 
-   docker secret rm master_key
-   # Pipe from stdin so the key never appears on argv or in shell history.
-   printf '%s' "$NEW_KEY_HEX" | docker secret create master_key -
+   # 1. Create the new secret under a new name (e.g. suffixed with a date or
+   #    monotonic version). Pipe from stdin so the key never appears on argv
+   #    or in shell history.
+   printf '%s' "$NEW_KEY_HEX" | docker secret create master_key_v2 -
    unset NEW_KEY_HEX
+
+   # 2. Update the service to mount the new secret in place of the old one.
+   #    `--secret-rm` detaches `master_key`; `--secret-add` attaches
+   #    `master_key_v2` at the same in-container target path so
+   #    `BRIGID_MASTER_KEY_FILE` does not need to change. This forces a
+   #    rolling restart of the leaf tasks.
+   docker service update \
+     --secret-rm master_key \
+     --secret-add source=master_key_v2,target=master_key \
+     leaf
+
+   # 3. Only now can the old secret be removed — it is no longer referenced.
+   docker secret rm master_key
+
+   # 4. (Optional) Rename for the next rotation: create master_key from
+   #    master_key_v2's value so the next rotation reuses the same names.
    ```
+
+   Stack-file equivalent: bump the `secrets:` entry name in `compose.yaml`,
+   then `docker stack deploy -c compose.yaml brigid` — Swarm performs the
+   same swap atomically per task.
 5. **Restart** the server.
 6. Verify with `curl https://example.com/health`.
 7. **Destroy** the old key material securely.
