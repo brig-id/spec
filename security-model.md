@@ -88,9 +88,16 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 ### 4.4 Session termination (logout)
 - **Endpoint:** `POST /auth/logout` — requires `Authorization: Bearer <token>`.
-- **Mitigation:** on logout, the token's `jti` is inserted into `JtiStore::blacklist()`. Subsequent calls with the same token are rejected by `is_blacklisted()` before any handler runs.
-- **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the JTI store is always bounded.
-- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()`; [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs).
+- **Mitigation:** logout is a **two-layer** revocation. The token's `jti` is
+  first written to the SQLite `jti_blacklist` table in `brigid-store` (the
+  durable layer, survives restarts), then inserted into
+  `brigid-oidc::JtiStore::blacklist()` (the in-process fast-path cache).
+  Subsequent requests are rejected by the `AuthenticatedClaims` extractor,
+  which consults **both** layers before any handler runs — so a logged-out
+  token remains revoked across service restarts even if the in-memory
+  cache has been wiped.
+- **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the in-memory cache is always bounded, and the persistent table is pruned on each logout (`DELETE FROM jti_blacklist WHERE exp <= ?`).
+- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()` (in-memory layer); [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — `blacklist_jti` / `is_jti_blacklisted` (durable layer); [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs).
 
 ### 4.5 Storage (zero-trust)
 - **Mitigation:** `brigid-store` encrypts every sensitive field with AES-256-GCM + unique nonce before `INSERT`.

@@ -39,8 +39,17 @@ This audit covers:
 - [ ] Can an attacker replay a valid ID token?
   - *Check (single-use path):* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()` calls `JtiStore::check_and_insert()` so a second presentation of the same `jti` is rejected.
   - *Check (bearer path):* [`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` calls `decode_token()`; bearer tokens are reusable until `exp` or logout-driven blacklist entry, and the auditor must confirm `decode_token` does NOT insert into `JtiStore` (otherwise legitimate repeated requests would be locked out).
-- [ ] Does the `sub` claim ever expose a username, alias, or raw DID?
-  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`
+- [ ] Does any ID-token claim expose a username, alias, raw DID, or other
+      stable cross-RP user identifier?
+  - *Check `sub`:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`.
+  - *Check every other claim in the issued token (`iss`, `aud`, `exp`,
+    `iat`, `jti`, `server`, `alias_type`, plus any future additions):*
+    none of them may carry a stable user-identifying value. In particular,
+    the schema documented in `protocol.md` §5 MUST NOT contain a raw
+    `did:web:<server>:u:<username>` (or equivalent) in any field — a stable
+    DID anywhere in the token defeats the pairwise-`sub` privacy property.
+    `iss` and `server` are issuer-side and therefore safe; everything else
+    must be either opaque (`sub` = VSID) or random (`jti` = UUID v4).
 - [ ] Is a logged-out token (via `POST /auth/logout`) rejected on subsequent requests?
   - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
 - [ ] Is the JTI blacklist bounded (no unbounded growth)?

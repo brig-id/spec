@@ -130,11 +130,18 @@ Client                          brigid-api                      brigid-store
   "exp":        1234567890,
   "iat":        1234567890,
   "jti":        "<uuid>",            // unique per token — replay prevention
-  "did":        "did:web:example.com",
-  "server":     "example.com",
+  "server":     "example.com",       // issuing server hostname — not user-identifying
   "alias_type": "root"
 }
 ```
+
+The ID token deliberately omits the user's root DID (or any other stable,
+cross-RP user identifier). `sub` is a VSID derived from
+`(did_root, client_id, salt)`, which makes it pairwise per relying party.
+Including a stable DID in any claim would let two colluding RPs correlate
+the same user across `aud` values and undermine the pairwise-subject
+privacy guarantee. `iss` and `server` identify the **issuer**, not the
+subject, and are therefore safe to publish.
 
 ### Token validation (brigid-oidc)
 
