@@ -59,9 +59,17 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 
 > ⚠️ Key rotation requires re-encrypting all data in the database. Plan for downtime.
 >
-> The steps below MUST be followed in order. Re-encrypting the database before
-> the new key is committed as a Docker secret would leave the data wrapped
-> under a key the running service no longer holds, making it unrecoverable.
+> The steps below MUST be followed in order. The new key material is
+> generated **first** (step 3) and staged on the orchestrator host at
+> `/run/secrets/master_key.new` with `0600` permissions. The database
+> re-encryption in step 4 reads from that same staged file, and the Docker
+> secret in step 5 is created **from that same staged file** — not a fresh
+> `openssl rand` invocation. As long as `/run/secrets/master_key.new`
+> survives between steps 3 and 5 (it lives on the orchestrator host's tmpfs,
+> not in the container), the rotated database is guaranteed to be wrapped
+> under the key the next leaf launch will receive. The runbook deletes the
+> staged file with `shred -u` only after `docker secret create` has copied
+> it into Swarm's encrypted raft store.
 
 1. **Stop** the brig·id server (`SIGTERM`; wait for graceful shutdown).
 2. **Back up** the SQLite database file.
@@ -113,8 +121,9 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    # encoding.
 
    # 1. Create the new secret under a new name (e.g. suffixed with a date or
-   #    monotonic version). Pipe from the staged file so the key never appears
-   #    on argv or in shell history.
+   #    monotonic version). `docker secret create` reads the key material
+   #    directly from the staged file path — it never appears on argv or in
+   #    shell history.
    docker secret create master_key_v2 /run/secrets/master_key.new
    shred -u /run/secrets/master_key.new   # wipe the staging copy
 
@@ -138,9 +147,9 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    Stack-file equivalent: bump the `secrets:` entry name in `compose.yaml`,
    then `docker stack deploy -c compose.yaml brigid` — Swarm performs the
    same swap atomically per task.
-5. **Restart** the server.
-6. Verify with `curl https://example.com/health`.
-7. **Destroy** the old key material securely.
+6. **Restart** the server.
+7. Verify with `curl https://example.com/health`.
+8. **Destroy** the old key material securely.
 
 ---
 
