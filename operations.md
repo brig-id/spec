@@ -95,23 +95,28 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 5. **Publish the new key to the orchestrator** so the service restarts with the
    matching key material.
 
+   The key material below is the same `NEW_KEY_HEX` staged in step 3 —
+   re-read it from `/run/secrets/master_key.new`. Generating a new value here
+   would break the rotation: the database has just been re-encrypted under the
+   step-3 key, so launching `leaf` with anything else makes the database
+   unreadable.
+
    Docker Swarm does **not** allow `docker secret rm` on a secret that is still
    referenced by a service, even if its tasks are stopped. The supported
    procedure is therefore a **two-name rotation**: create a new secret under a
    new name, update the service to use it, then delete the old secret.
 
    ```bash
-   # Generate the new MASTER_KEY as a 64-character ASCII hex string
-   # (32 bytes encoded). `BRIGID_MASTER_KEY_FILE` reads the file as text and
-   # tolerates a single trailing newline; the file must NOT contain raw
-   # binary or any other encoding.
-   NEW_KEY_HEX="$(openssl rand -hex 32)"
+   # Reuse the key material staged in step 3 — NOT a freshly generated value.
+   # `BRIGID_MASTER_KEY_FILE` reads the file as text and tolerates a single
+   # trailing newline; the file must NOT contain raw binary or any other
+   # encoding.
 
    # 1. Create the new secret under a new name (e.g. suffixed with a date or
-   #    monotonic version). Pipe from stdin so the key never appears on argv
-   #    or in shell history.
-   printf '%s' "$NEW_KEY_HEX" | docker secret create master_key_v2 -
-   unset NEW_KEY_HEX
+   #    monotonic version). Pipe from the staged file so the key never appears
+   #    on argv or in shell history.
+   docker secret create master_key_v2 /run/secrets/master_key.new
+   shred -u /run/secrets/master_key.new   # wipe the staging copy
 
    # 2. Update the service to mount the new secret in place of the old one.
    #    `--secret-rm` detaches `master_key`; `--secret-add` attaches

@@ -95,10 +95,13 @@ This audit covers:
 
 ### OIDC
 - [ ] `exp` is always set and checked
-- [ ] `jti` is always generated (UUID v4) and persisted by `brigid-store` on the
-      single-use validation / logout paths (the in-process `JtiStore` is only
-      the fast-path cache; bearer tokens validated against persisted claims are
-      not inserted into `JtiStore` itself)
+- [ ] `jti` is always generated (UUID v4) and revocation survives a service
+      restart: `POST /auth/logout` writes the JTI to the SQLite
+      `jti_blacklist` table in `brigid-store` (the durable layer) and then
+      to `brigid-oidc::JtiStore` (the in-process fast-path cache).
+      `AuthenticatedClaims` in `brigid-api` consults both layers on every
+      authenticated request, so a JTI revoked before a restart is still
+      rejected afterwards.
 - [ ] `JtiStore` evicts expired entries (bounded growth)
 - [ ] `aud` is verified against `expected_client_id`
 
