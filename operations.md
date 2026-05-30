@@ -143,8 +143,14 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    # 3. Only now can the old secret be removed — it is no longer referenced.
    docker secret rm master_key
 
-   # 4. (Optional) Rename for the next rotation: create master_key from
-   #    master_key_v2's value so the next rotation reuses the same names.
+   # 4. The naming scheme. Each rotation creates a new monotonic-suffixed
+   #    secret (`master_key_v2`, `master_key_v3`, …); operators do NOT
+   #    "rename back" to `master_key` between rotations. Docker Swarm holds
+   #    secret values in encrypted raft and exposes no read path for them,
+   #    so recreating `master_key` would require keeping a plaintext copy
+   #    of the new key — exactly the pattern this runbook spends step 3
+   #    eliminating with `shred -u`. The next rotation simply produces
+   #    `master_key_v3` and updates the service in the same way.
    ```
 
    Stack-file equivalent: bump the `secrets:` entry name in `compose.yaml`,
