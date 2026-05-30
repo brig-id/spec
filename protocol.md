@@ -240,27 +240,36 @@ Exposes the server's DID Web document, enabling DID-based identity resolution.
 ## 8. Logout Flow
 
 ```
-Client                          brigid-api                  JtiStore (in-memory)
-  │                                 │                               │
-  │─── POST /auth/logout ────────▶│                               │
-  │    Authorization: Bearer <jwt>  │                               │
-  │                                 │ decode + verify token         │
-  │                                 │ check is_blacklisted(jti) ──▶│
-  │                                 │ blacklist(jti, exp) ────────▶│ insert jti, TTL = exp
-  │◄── 204 No Content ────────────│                               │
-  │                                 │                               │
-  │─── (any request with same token)▶│                               │
-  │                                 │ check is_blacklisted(jti) ──▶│
-  │                                 │◄─────────────────── true ────│
-  │◄── 401 Unauthorized ───────────│                               │
+Client                  brigid-api          brigid-store          JtiStore (in-memory)
+  │                         │                  (sqlite)                  │
+  │── POST /auth/logout ──▶│                       │                     │
+  │   Authorization:       │                       │                     │
+  │   Bearer <jwt>         │ decode + verify token │                     │
+  │                        │ blacklist_jti(jti,exp)│                     │
+  │                        │───────── INSERT ────▶│ (durable, survives  │
+  │                        │                       │  restart)           │
+  │                        │ blacklist(jti, exp) ────────────────────▶│ TTL = exp
+  │◄── 204 No Content ────│                       │                     │
+  │                        │                       │                     │
+  │── (any request with same token) ▶│            │                     │
+  │                        │ AuthenticatedClaims:  │                     │
+  │                        │  ① in-memory check ──────────────────────▶│
+  │                        │  ② if not cached,     │                     │
+  │                        │     SQL lookup ─────▶│ jti_blacklist row?  │
+  │◄── 401 Unauthorized ──│                       │                     │
 ```
 
 ### Security properties
+
 - The token is validated fully (signature, expiry, issuer, audience) before blacklisting.
-- Blacklisted JTIs expire automatically at the token's `exp` — `JtiStore` is always bounded.
+- **Two-tier revocation store** — every logout writes to both:
+  1. The durable SQLite `jti_blacklist` table in `brigid-store` (written **first**, so a crash between the two writes still revokes the token).
+  2. The in-memory `JtiStore` cache in `brigid-oidc` (written second, for hot-path lookups without an SQL round-trip).
+- `AuthenticatedClaims` consults **both** stores on every authenticated request: a process restart that drops the in-memory cache cannot resurrect a revoked token because the SQL row is authoritative.
+- Both stores expire entries at the token's `exp` (TTL in memory, `WHERE expires_at > now` in SQL), so neither grows unbounded.
 - `POST /auth/logout` is protected by the `AuthenticatedClaims` extractor: malformed or expired tokens are rejected before the handler runs.
 
-*Reference:* [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs), [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs)
+*Reference:* [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs), [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs), [`brigid-store` JTI blacklist](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/lib.rs) — see also [`security-model.md` §4.4](./security-model.md#44-token-revocation--restart-resilient) and [`audit-checklist.md` §2.2](./audit-checklist.md).
 
 ---
 
