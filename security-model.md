@@ -124,9 +124,9 @@ These invariants are enforced in code and must be verified by auditors:
 2. **VSID isolation:** VSID must never be derived from an alias or a virtual identity.
    - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
    - *Verify:* `vsid_never_derived_from_alias` test asserts `compute_vsid` rejects non-`did:web:` inputs with an error.
-3. **Zero raw secrets in storage:** `brigid-store` must never call SQLite `execute`/`fetch` without encrypted payloads.
-   - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — all public store functions.
-   - *Verify:* `dump_contains_no_plaintext` integration test in `brigid-store`.
+3. **Zero raw secrets in storage:** every *sensitive* field written by `brigid-store` (credential bodies, signing-key seeds, refresh-token material, etc.) MUST be encrypted with AES-256-GCM via `brigid-crypto` before the `INSERT` reaches SQLite. Non-secret operational metadata (table primary keys, foreign keys, `expires_at` timestamps, the `jti_blacklist` opaque token-ID column, schema-migration markers) may be stored in plaintext so the database can be queried and pruned; what must never appear in plaintext is any value that would reveal a credential, a private key, a user-supplied identifier, or session-bound state.
+   - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — see the `encrypt_field` / `decrypt_field` helpers and their call sites in every public store function.
+   - *Verify:* `dump_contains_no_plaintext` integration test in `brigid-store` — it asserts the secret payloads do not appear in a raw `.dump`, but tolerates plaintext metadata columns by construction.
 4. **No secrets in logs:** `tracing` spans must not capture key material, WebAuthn private keys, or OIDC signing keys.
 5. **JWT replay control:** every accepted token MUST pass through one of the two `brigid-oidc` validation paths.
    - **Bearer path** (production middleware): `decode_token` verifies the signature, standard claims, and consults `JtiStore::is_blacklisted()`. The token remains usable for repeated requests until `exp` or until logout writes its `jti` to the blacklist.

@@ -73,41 +73,42 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 
 1. **Stop** the brig·id server (`SIGTERM`; wait for graceful shutdown).
 2. **Back up** the SQLite database file.
-3. **Generate the new MASTER_KEY** and stage it where the rotation utility
-   can read it (file path or stdin — never as a shell argument):
+3. **Generate the new MASTER_KEY** directly into the staging file (never
+   into a shell variable — `$NEW_KEY_HEX` would leak into the shell history
+   and the process environment of any child the operator spawns afterwards):
    ```bash
-   # 64-character ASCII hex = 32 bytes after decoding.
-   NEW_KEY_HEX="$(openssl rand -hex 32)"
-
-   # Stage on disk with restrictive permissions for the rotate-key step.
+   # 64-character ASCII hex = 32 bytes after decoding. The redirection writes
+   # straight to the staging path; the value is never bound to a shell
+   # variable. `install` first creates the file with `0600` so `openssl`'s
+   # output is never visible to other users on the host.
    install -m 600 /dev/null /run/secrets/master_key.new
-   printf '%s' "$NEW_KEY_HEX" > /run/secrets/master_key.new
+   openssl rand -hex 32 > /run/secrets/master_key.new
    ```
 4. **Re-encrypt the database** with the rotation utility (to be implemented —
    see Phase 8 roadmap). The CLI **must not** accept key material as
    command-line arguments — `argv` is visible to other users via `ps`, leaks
-   into shell history, crash reports, and audit logs. Pass keys as file paths
-   (Docker secret mount points) or via dedicated environment variables read
-   once and zeroized:
+   into shell history, crash reports, and audit logs. The only supported
+   key-passing mode is file paths (Docker secret mount points):
    ```bash
-   # File-based (preferred when keys live in Docker/Compose secrets):
+   # File-based (the single supported form):
    leaf rotate-key \
      --old-key-file /run/secrets/master_key \
      --new-key-file /run/secrets/master_key.new \
      --db /data/brigid.db
    ```
-   A stdin variant is intentionally omitted from this runbook: piping both
-   hex strings into the rotation tool would require materialising them as
-   shell variables (`$OLD_KEY_HEX`, `$NEW_KEY_HEX`) which then leak into the
-   process environment and shell history. The file-based form above is the
-   only supported path, and it consumes the same `/run/secrets/master_key.new`
-   that step 3 staged.
+   Environment variables and stdin are **not** supported by the rotation
+   utility for the same reason `BRIGID_MASTER_KEY` itself is preferred via
+   `BRIGID_MASTER_KEY_FILE` at runtime: piping or exporting the hex string
+   would require materialising it in shell state (`$OLD_KEY_HEX`,
+   `$NEW_KEY_HEX`) which then leaks into the process environment and shell
+   history. The file-based form above consumes the same
+   `/run/secrets/master_key.new` that step 3 staged.
 5. **Publish the new key to the orchestrator** so the service restarts with the
    matching key material.
 
-   The key material below is the same `NEW_KEY_HEX` staged in step 3 —
-   re-read it from `/run/secrets/master_key.new`. Generating a new value here
-   would break the rotation: the database has just been re-encrypted under the
+   The key material below is the same value staged in step 3 — re-read it
+   from `/run/secrets/master_key.new`. Generating a new value here would
+   break the rotation: the database has just been re-encrypted under the
    step-3 key, so launching `leaf` with anything else makes the database
    unreadable.
 
