@@ -87,19 +87,21 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    see Phase 8 roadmap). The CLI **must not** accept key material as
    command-line arguments — `argv` is visible to other users via `ps`, leaks
    into shell history, crash reports, and audit logs. Pass keys as file paths
-   (Docker secret mount points), via dedicated environment variables read once
-   and zeroized, or via stdin:
+   (Docker secret mount points) or via dedicated environment variables read
+   once and zeroized:
    ```bash
    # File-based (preferred when keys live in Docker/Compose secrets):
    leaf rotate-key \
      --old-key-file /run/secrets/master_key \
      --new-key-file /run/secrets/master_key.new \
      --db /data/brigid.db
-
-   # Stdin-based (interactive operator):
-   printf '%s\n%s\n' "$OLD_KEY_HEX" "$NEW_KEY_HEX" | \
-     leaf rotate-key --keys-from-stdin --db /data/brigid.db
    ```
+   A stdin variant is intentionally omitted from this runbook: piping both
+   hex strings into the rotation tool would require materialising them as
+   shell variables (`$OLD_KEY_HEX`, `$NEW_KEY_HEX`) which then leak into the
+   process environment and shell history. The file-based form above is the
+   only supported path, and it consumes the same `/run/secrets/master_key.new`
+   that step 3 staged.
 5. **Publish the new key to the orchestrator** so the service restarts with the
    matching key material.
 
