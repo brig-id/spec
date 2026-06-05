@@ -1,0 +1,11 @@
+{
+  "conventionalCommits.gitmoji": true,
+  "conventionalCommits.scopes": [
+    "protocol",
+    "operations",
+    "audit",
+    "pqc",
+    "security",
+    "ci"
+  ]
+}
