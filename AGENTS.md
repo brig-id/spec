@@ -17,10 +17,6 @@ intended for third-party security auditors and the open-source community.
 
 This repository contains **no code**. It is documentation only.
 
-## Current phase
-
-**Phase 8** — see `/workspaces/.dev/phases/phase-8.md` for the full checklist.
-
 ## Rules
 
 - Write for an external security auditor, not an internal developer.
@@ -29,12 +25,45 @@ This repository contains **no code**. It is documentation only.
 - All cryptographic parameters must cite their NIST/IETF standard.
 - Keep documents self-contained — do not assume the reader has access to the source code.
 
-## Key documents to produce
+## Key documents
 
 | File | Content |
-|---|---|
+| --- | --- |
 | `security-model.md` | Threat actors, attack surfaces, mitigations, trust assumptions |
 | `protocol.md` | Step-by-step WebAuthn + OIDC flows, VSID formula, key sizes |
 | `pqc.md` | ML-KEM-768 (FIPS 203), ML-DSA-65 (FIPS 204), hybrid rationale, migration roadmap |
 | `audit-checklist.md` | Critical points, attack vectors to test, contact + CVD process |
 | `operations.md` | MASTER_KEY rotation procedure, incident response playbook |
+
+## Commit conventions
+
+Format: `type(scope): <emoji> description`
+
+| Type | Emoji | When |
+| --- | --- | --- |
+| `feat` | ✨ | New document or section |
+| `fix` | 🐛 | Correction to an existing document |
+| `docs` | 📝 | Minor wording or formatting update |
+| `chore` | 🔧 | Maintenance, config |
+| `ci` | 👷 | CI/CD |
+| `revert` | ⏪ | Reverts a previous commit |
+
+### Allowed scopes
+
+| Scope | Maps to |
+| --- | --- |
+| `protocol` | `protocol.md` |
+| `operations` | `operations.md` |
+| `audit` | `audit-checklist.md` |
+| `pqc` | `pqc.md` |
+| `security` | `security-model.md` |
+| `ci` | `.github/workflows/` |
+
+**Do not use a scope outside this list.** If a new document is added, update this table
+and `.vscode/settings.json`.
+
+```text
+feat(protocol): ✨ document VSID computation formula
+fix(audit): 🐛 correct ML-KEM key size reference
+docs(operations): 📝 add MASTER_KEY rotation example
+```
