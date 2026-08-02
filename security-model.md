@@ -105,8 +105,19 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** HKDF-SHA3-256 used to derive per-context sub-keys from the master key.
 
 ### 4.6 Cross-site scripting (XSS)
-- **Mitigation:** `Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-{…}'; …` — no `unsafe-inline`.
-- **Mitigation:** nonce regenerated per request; injected into Leptos hydration `<script>` tags.
+- **Mitigation:** `Content-Security-Policy` header (`brigid-api/src/router.rs`
+  — `build_router()`'s `security_headers` layer) restricts `default-src`,
+  `frame-ancestors`, `object-src`, and `base-uri`.
+- **Known deviation (tracked, not yet fixed):** `script-src`/`style-src`
+  currently include `'unsafe-inline'` rather than the nonce-based policy
+  this section originally described. The UI moved from a server-rendered
+  Leptos app (which could inject a per-request nonce into its own hydration
+  script) to `brig-id/web`'s Qwik static (SSG) build, which emits inline
+  `<script>`/`<style>` content that a nonce can't reach at request time —
+  there is no per-request rendering step left to inject one into. The real
+  fix (a build-time SHA-256 hash allowlist derived from the static build
+  output) is not yet implemented; see `brig-id/.dev/phases/backlog.md`.
+  Auditors should treat this as an open finding.
 
 ### 4.7 Cross-origin requests (CORS)
 - **Mitigation:** explicit origin allowlist in configuration; no `Access-Control-Allow-Origin: *`.

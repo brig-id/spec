@@ -84,25 +84,38 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    install -m 600 /dev/null /run/secrets/master_key.new
    openssl rand -hex 32 > /run/secrets/master_key.new
    ```
-4. **Re-encrypt the database** with the rotation utility (to be implemented —
-   see Phase 8 roadmap). The CLI **must not** accept key material as
-   command-line arguments — `argv` is visible to other users via `ps`, leaks
-   into shell history, crash reports, and audit logs. The only supported
-   key-passing mode is file paths (Docker secret mount points):
+4. **Re-encrypt the database** with the `leaf rotate-key` subcommand. It
+   **does not** accept key material as command-line arguments — `argv` is
+   visible to other users via `ps`, leaks into shell history, crash reports,
+   and audit logs. The only supported key-passing mode is file paths (Docker
+   secret mount points):
    ```bash
    # File-based (the single supported form):
-   leaf rotate-key \
-     --old-key-file /run/secrets/master_key \
-     --new-key-file /run/secrets/master_key.new \
-     --db /data/brigid.db
+   leaf --config /etc/brigid/leaf.toml rotate-key \
+     --old /run/secrets/master_key \
+     --new /run/secrets/master_key.new
    ```
+   `--config` is the same global flag a normal `leaf` startup takes; if the
+   deployment configures the database path via `LEAF_DATABASE__PATH`
+   instead of a TOML file, omit `--config` entirely — `rotate-key` resolves
+   the database path exactly like a normal run, it just skips the rest of
+   `Config` (`server`/TLS/CORS) since a rotation never touches those.
    Environment variables and stdin are **not** supported by the rotation
-   utility for the same reason `BRIGID_MASTER_KEY` itself is preferred via
+   subcommand for the same reason `BRIGID_MASTER_KEY` itself is preferred via
    `BRIGID_MASTER_KEY_FILE` at runtime: piping or exporting the hex string
    would require materialising it in shell state (`$OLD_KEY_HEX`,
    `$NEW_KEY_HEX`) which then leaks into the process environment and shell
-   history. The file-based form above consumes the same
-   `/run/secrets/master_key.new` that step 3 staged.
+   history. `BRIGID_MASTER_KEY` is deliberately **not** read from the
+   environment for this subcommand either — both the old and new key are
+   needed simultaneously, and only one can occupy that variable. The
+   file-based form above consumes the same `/run/secrets/master_key.new`
+   that step 3 staged.
+
+   On success the command prints two consequences to stderr that this
+   runbook's step 6 depends on: every user's VSID changes for every relying
+   party (§2 below has no mitigation for this — it cannot be preserved), and
+   every `id_token` issued before the rotation is invalidated immediately,
+   not just at natural expiry.
 5. **Publish the new key to the orchestrator** so the service restarts with the
    matching key material.
 

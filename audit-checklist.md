@@ -10,16 +10,20 @@
 
 This audit covers:
 
-| Crate | Phase | Purpose |
+| Crate / repo | Phase | Purpose |
 |---|---|---|
-| `brigid-crypto` | 1 | Cryptographic primitives |
+| `brigid-crypto` (`brig-id/crypto`) | 1 | Cryptographic primitives |
 | `brigid-store` | 2 | Zero-trust SQLite storage |
 | `brigid-did` | 2 | DID:web and DID:peer resolution |
 | `brigid-identity` | 3 | VSID computation, `RootId` |
 | `brigid-webauthn` | 4 | Passkey registration and authentication |
 | `brigid-oidc` | 5 | JWT issuance and validation |
 | `brigid-api` | 6 | Axum HTTP server |
-| `brigid-ui` | 6 | Leptos SSR frontend |
+| `web` (`brig-id/web`) | 6 | Qwik UI, built as static (SSG) files and served by `server-leaf` |
+
+> The `brigid-ui` Leptos SSR crate named in earlier phase docs was replaced
+> by the standalone `brig-id/web` repo (Qwik, static-site-generated) — there
+> is no server-rendered UI crate in `core` to audit.
 
 ---
 
@@ -75,17 +79,48 @@ This audit covers:
 
 ### 2.6 XSS and injection
 - [ ] Does the server emit a strict `Content-Security-Policy` header?
-  - *Check:* `brigid-api/src/middleware/csp.rs`
-- [ ] Does the CSP include `unsafe-inline` for scripts?
-  - *Check:* must be absent; nonce-based for hydration scripts
-- [ ] Can an attacker inject HTML into server-rendered pages?
-  - *Check:* Leptos escapes all dynamic values by default
+  - *Check:* `brigid-api/src/router.rs` — `build_router()`'s `security_headers`
+    layer (applied outermost, after `.fallback_service()`, so it also covers
+    the static UI files `server-leaf` serves)
+- [ ] Does the CSP include `unsafe-inline` for scripts or styles?
+  - *Check:* as of this writing it **does**, as a known, tracked stopgap —
+    `script-src`/`style-src` carry `'unsafe-inline'` because the Qwik SSG
+    build emits inline `<script>`/`<style>` content. The real fix
+    (build-time SHA-256 hash allowlist, generated from the static build
+    output) is not yet implemented; see the `.dev` backlog
+    (`brig-id/.dev/phases/backlog.md`). Auditors should treat this as an
+    open finding, not a false positive in this checklist.
+- [ ] Can an attacker inject HTML into rendered pages?
+  - *Check:* there is no server-rendered HTML — the UI is a Qwik static
+    (SSG) build served as-is by `server-leaf`; Qwik's JSX escapes all
+    dynamic values by default at build time.
 
 ### 2.7 Transport security
 - [ ] Is TLS 1.2 rejected? / Is TLS 1.3 minimum enforced?
   - *Check:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs) — `ServerConfig::builder_with_protocol_versions(&[&TLS13])`
 - [ ] Is OpenSSL in the dependency tree?
   - *Check:* `cargo tree -i openssl-sys` — present as transitive dep of webauthn-rs-core (X.509 attestation parsing); must NOT be used for TLS (`cargo deny check bans` confirms)
+
+### 2.8 MASTER_KEY rotation
+- [ ] Does `rotate-key` roll back entirely on partial failure (no half-migrated database)?
+  - *Check:* `brigid-store/src/store.rs` — `rotate_master_key()` runs the full
+    re-encryption (both `users` and `webauthn_credentials`) inside a single
+    `sqlx` transaction; test `rotate_master_key_rolls_back_entirely_on_partial_failure`
+    inserts a malformed credential blob mid-rotation and asserts the *whole*
+    transaction reverts, including already-processed rows.
+- [ ] Can the old master key still decrypt data after a successful rotation?
+  - *Check:* must fail — test `rotate_master_key_old_key_can_no_longer_decrypt`
+- [ ] Does `leaf rotate-key` accept key material via `argv`, an environment
+      variable, or stdin (any of which would defeat the `ps`/shell-history
+      protections `operations.md` §1 relies on)?
+  - *Check:* `server-leaf/src/main.rs` — `Command::RotateKey { old, new }`
+    accepts only file paths (`PathBuf`), read via `MasterKey::from_file`;
+    the subcommand does not call `MasterKey::from_env` at all, since both
+    the old and new key are needed simultaneously and only one can occupy
+    `BRIGID_MASTER_KEY`.
+- [ ] Are operators warned that VSIDs and the OIDC signing key change on rotation?
+  - *Check:* `rotate_key()` in `server-leaf/src/main.rs` prints both
+    consequences to stderr on success; also documented in `operations.md` §3.
 
 ---
 
@@ -133,6 +168,8 @@ This audit covers:
 - [ ] Docker image is distroless (no shell, no package manager)
 - [ ] Container filesystem is read-only (`read_only: true` in compose)
 - [ ] `BRIGID_MASTER_KEY` supplied via Docker secret, not plain env var, in production
+- [ ] `leaf rotate-key` is reachable only via a file-based CLI (`--old`/`--new`
+      paths), never `BRIGID_MASTER_KEY`, for the reasons in §2.8 above
 
 ---
 
@@ -144,7 +181,7 @@ Install once before running the checks below (Rust ≥ 1.95 stable + nightly):
 
 ```bash
 rustup toolchain install stable nightly
-rustup target add wasm32-unknown-unknown            # for brigid-ui (Leptos)
+rustup target add wasm32-unknown-unknown            # for the web crate
 cargo install --locked cargo-audit cargo-deny cargo-llvm-cov cargo-cyclonedx
 cargo +nightly install --locked cargo-fuzz
 # System linker required by the workspaces' `.cargo/config.toml`:
@@ -152,7 +189,8 @@ sudo apt-get install -y mold
 ```
 
 The brig·id devcontainer (`brig-id/.dev/.devcontainer/`) provides all of the
-above out of the box.
+above out of the box, plus `pnpm` and Playwright's browser binaries for the
+`brig-id/web` checks below.
 
 ### Commands and working directories
 
@@ -174,12 +212,22 @@ cargo audit
 cargo deny check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo llvm-cov --workspace --summary-only   # workspace target: ≥ 95%
+cargo +nightly fuzz run fuzz_parse_identifier -- -max_total_time=60   # fuzz/, separate [workspace]
+cargo +nightly fuzz run fuzz_did_web_resolve -- -max_total_time=60
+cargo +nightly fuzz run fuzz_jwt_validate -- -max_total_time=60
 
 # In brig-id/server-leaf:
 cargo audit
 cargo deny check
 cargo clippy --all-targets -- -D warnings
 cargo cyclonedx                      # generate CycloneDX SBOM
+cargo test --test rotate_key         # MASTER_KEY rotation round-trip over real HTTP + a software passkey
+
+# In brig-id/web:
+pnpm install --frozen-lockfile
+pnpm audit                           # supply chain — check pnpm-workspace.yaml `overrides` if this fails
+pnpm build                           # qwik check-client + static (SSG) build
+pnpm test.e2e                        # Playwright suite — register/login/passkeys/sign-out against a real leaf
 ```
 
 ---
