@@ -116,7 +116,9 @@ brig·id is a self-hosted identity provider (IdP) offering:
   `<script>`/`<style>` content that a nonce can't reach at request time —
   there is no per-request rendering step left to inject one into. The real
   fix (a build-time SHA-256 hash allowlist derived from the static build
-  output) is not yet implemented; see `brig-id/.dev/phases/backlog.md`.
+  output) is not yet implemented; see
+  [`brig-id/core#20`](https://github.com/brig-id/core/issues/20) and
+  [`brig-id/web#3`](https://github.com/brig-id/web/issues/3).
   Auditors should treat this as an open finding.
 
 ### 4.7 Cross-origin requests (CORS)
