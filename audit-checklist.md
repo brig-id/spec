@@ -19,10 +19,10 @@ This audit covers:
 | `brigid-webauthn` | 4 | Passkey registration and authentication |
 | `brigid-oidc` | 5 | JWT issuance and validation |
 | `brigid-api` | 6 | Axum HTTP server |
-| `web` (`brig-id/web`) | 6 | Qwik UI, built as static (SSG) files and served by `server-leaf` |
+| `web` (`brig-id/app`) | 6 | Qwik UI, built as static (SSG) files and served by `server-leaf` |
 
 > The `brigid-ui` Leptos SSR crate named in earlier phase docs was replaced
-> by the standalone `brig-id/web` repo (Qwik, static-site-generated) — there
+> by the standalone `brig-id/app` repo (Qwik, static-site-generated) — there
 > is no server-rendered UI crate in `core` to audit.
 
 ---
@@ -79,17 +79,26 @@ This audit covers:
 
 ### 2.6 XSS and injection
 - [ ] Does the server emit a strict `Content-Security-Policy` header?
-  - *Check:* `brigid-api/src/router.rs` — `build_router()`'s `security_headers`
-    layer (applied outermost, after `.fallback_service()`, so it also covers
-    the static UI files `server-leaf` serves)
+  - *Check:* `server-leaf/src/lib.rs` — `apply_ui_fallback()`'s security
+    header layer, applied genuinely last (after `.fallback_service()`), is
+    what actually covers every response `leaf` serves, including the static
+    UI files. `brigid-api/src/router.rs`'s `build_router()` applies its own
+    copy of this layer, but in axum 0.8 a `.layer()` only wraps
+    routes/fallback that exist *at call time* — since `server-leaf` attaches
+    the fallback service after `build_router()` returns, that inner layer
+    never reaches UI-facing responses. The two copies have since diverged;
+    treat `server-leaf`'s as authoritative.
 - [ ] Does the CSP include `unsafe-inline` for scripts or styles?
   - *Check:* as of this writing it **does**, as a known, tracked stopgap —
     `script-src`/`style-src` carry `'unsafe-inline'` because the Qwik SSG
-    build emits inline `<script>`/`<style>` content. The real fix
-    (build-time SHA-256 hash allowlist, generated from the static build
-    output) is not yet implemented; see the `.dev` backlog
-    (`brig-id/.dev/phases/backlog.md`). Auditors should treat this as an
-    open finding, not a false positive in this checklist.
+    build emits inline `<script>`/`<style>` content. `style-src`/`font-src`
+    also allow the third-party origin `https://fonts.bunny.net`, the
+    external font host `app` loads from. The real fix (build-time SHA-256
+    hash allowlist, generated from the static build output) is not yet
+    implemented; TODO/phases tracking has moved to
+    [GitHub Project 1](https://github.com/orgs/brig-id/projects/1) — see
+    `brig-id/core#20`. Auditors should treat this as an open finding, not a
+    false positive in this checklist.
 - [ ] Can an attacker inject HTML into rendered pages?
   - *Check:* there is no server-rendered HTML — the UI is a Qwik static
     (SSG) build served as-is by `server-leaf`; Qwik's JSX escapes all
@@ -181,22 +190,21 @@ Install once before running the checks below (Rust ≥ 1.95 stable + nightly):
 
 ```bash
 rustup toolchain install stable nightly
-rustup target add wasm32-unknown-unknown            # for the web crate
 cargo install --locked cargo-audit cargo-deny cargo-llvm-cov cargo-cyclonedx
 cargo +nightly install --locked cargo-fuzz
 # System linker required by the workspaces' `.cargo/config.toml`:
 sudo apt-get install -y mold
 ```
 
-The brig·id devcontainer (`brig-id/.dev/.devcontainer/`) provides all of the
+The brig·id devcontainer (`brig-id/roots/.devcontainer/`) provides all of the
 above out of the box, plus `pnpm` and Playwright's browser binaries for the
-`brig-id/web` checks below.
+`brig-id/app` checks below.
 
 ### Commands and working directories
 
 Each command must be run from the listed repository checkout. Clone all
 sibling repositories into the same parent directory (the layout the
-`brig-id/.dev` workspace expects); the reusable workflows in
+`brig-id/roots` workspace expects); the reusable workflows in
 `brig-id/.github` invoke the same commands from each repo's CI.
 
 ```bash
@@ -223,7 +231,7 @@ cargo clippy --all-targets -- -D warnings
 cargo cyclonedx                      # generate CycloneDX SBOM
 cargo test --test rotate_key         # MASTER_KEY rotation round-trip over real HTTP + a software passkey
 
-# In brig-id/web:
+# In brig-id/app:
 pnpm install --frozen-lockfile
 pnpm audit                           # supply chain — check pnpm-workspace.yaml `overrides` if this fails
 pnpm build                           # qwik check-client + static (SSG) build

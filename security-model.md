@@ -71,10 +71,26 @@ brig·id is a self-hosted identity provider (IdP) offering:
 ## 4. Attack Surfaces
 
 ### 4.1 Transport layer
-- **Mitigation:** TLS 1.3 minimum, configured via rustls `ServerConfig::builder_with_protocol_versions(&[&TLS13])`. No OpenSSL-backed TLS connections; openssl-sys appears as a transitive dependency of `webauthn-rs-core` (via `webauthn-attestation-ca`) for X.509 attestation certificate parsing — not for network connections.
+- **Mitigation (optional built-in TLS path):** when `tls_cert`/`tls_key` are
+  configured, `leaf` terminates TLS itself via
+  `axum_server::tls_rustls::RustlsConfig::from_pem_file()`, which builds a
+  plain `rustls::ServerConfig::builder()` with no explicit protocol-version
+  restriction — so it currently accepts TLS 1.2 as well as TLS 1.3, not
+  "TLS 1.3 minimum" as an earlier version of this doc claimed (there is no
+  `builder_with_protocol_versions(&[&TLS13])` call anywhere in this
+  codebase). In the reference production deployment
+  (`server-leaf/deploy/compose.yaml`), TLS termination happens at Caddy
+  instead, in front of `leaf` running plain HTTP — this built-in path is for
+  deployments that don't front `leaf` with a separate TLS-terminating proxy.
+  **Auditors should treat "TLS 1.3 minimum" as an open finding**, not a
+  verified property, until either the code pins `builder_with_protocol_versions`
+  or this section is corrected to describe the actual minimum (TLS 1.2).
+  No OpenSSL-backed TLS connections either way; openssl-sys appears as a
+  transitive dependency of `webauthn-rs-core` (via `webauthn-attestation-ca`)
+  for X.509 attestation certificate parsing — not for network connections.
   - *Verify:* run `cargo deny check bans`; the `deny.toml` skip-tree exception for `openssl-sys` documents this path. `cargo tree -i openssl-sys` shows it present; `cargo deny check bans` confirms it is allowed only as an attestation-parsing dep, not for TLS.
-  - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs) — `rustls::ServerConfig` construction.
-- **HSTS** enforced via `Strict-Transport-Security: max-age=31536000; includeSubDomains`.
+  - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs) — `RustlsConfig::from_pem_file()` call, `bind_rustls()`.
+- **HSTS** enforced via `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
 
 ### 4.2 Authentication endpoint (`/auth/*`)
 - **Mitigation:** rate limiting — 20 req/min per IP via `tower-governor`.
@@ -82,7 +98,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** challenges are single-use and expire (TTL enforced in `brigid-webauthn`).
 
 ### 4.3 Token issuance
-- **Mitigation:** `sub` claim = VSID (derived from `(did_root, client_id, salt)`) — stable and opaque per RP.
+- **Mitigation:** `sub` claim = VSID (derived from `(did_root, client_id)` and a deployment-wide salt keyed off `MASTER_KEY`) — stable and opaque per RP.
 - **Mitigation:** every issued ID Token carries a unique `jti` (UUID v4), bounded lifetime via `exp`, and is rejected once blacklisted by logout (see 4.4). The `JtiStore` evicts expired entries so it is always bounded.
 - **Mitigation:** EdDSA signatures (Ed25519) over ID tokens; private key never leaves the server process.
 
@@ -105,20 +121,31 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** HKDF-SHA3-256 used to derive per-context sub-keys from the master key.
 
 ### 4.6 Cross-site scripting (XSS)
-- **Mitigation:** `Content-Security-Policy` header (`brigid-api/src/router.rs`
-  — `build_router()`'s `security_headers` layer) restricts `default-src`,
-  `frame-ancestors`, `object-src`, and `base-uri`.
-- **Known deviation (tracked, not yet fixed):** `script-src`/`style-src`
-  currently include `'unsafe-inline'` rather than the nonce-based policy
-  this section originally described. The UI moved from a server-rendered
-  Leptos app (which could inject a per-request nonce into its own hydration
-  script) to `brig-id/web`'s Qwik static (SSG) build, which emits inline
-  `<script>`/`<style>` content that a nonce can't reach at request time —
-  there is no per-request rendering step left to inject one into. The real
-  fix (a build-time SHA-256 hash allowlist derived from the static build
-  output) is not yet implemented; see
+- **Mitigation:** `Content-Security-Policy` header restricts `default-src`,
+  `frame-ancestors`, `object-src`, and `base-uri`. `brigid-api/src/router.rs`
+  (`build_router()`'s `security_headers` layer, `core` repo) applies a copy of
+  this policy, but in axum 0.8 a `.layer()` only wraps routes/fallback that
+  exist *at call time* — since `server-leaf` attaches the static-UI fallback
+  service *after* `build_router()` returns, that inner layer never reaches
+  UI-facing responses (`/login`, `/register`, static assets, …). The policy
+  that actually covers every response `leaf` serves is the one (re-)applied
+  in [`server-leaf/src/lib.rs`](https://github.com/brig-id/server-leaf/blob/main/src/lib.rs)'s
+  `apply_ui_fallback()`, genuinely last in the middleware stack. The two
+  copies have since diverged — treat `server-leaf`'s as authoritative.
+- **Known deviation (tracked, not yet fixed):** the effective (`server-leaf`)
+  policy's `script-src`/`style-src` include `'unsafe-inline'` rather than the
+  nonce-based policy this section originally described. The UI moved from a
+  server-rendered Leptos app (which could inject a per-request nonce into its
+  own hydration script) to `brig-id/app`'s Qwik static (SSG) build, which
+  emits inline `<script>`/`<style>` content that a nonce can't reach at
+  request time — there is no per-request rendering step left to inject one
+  into. `style-src`/`font-src` also allow the third-party origin
+  `https://fonts.bunny.net`, the external font host `app` loads from — not
+  documented anywhere else in this file. The real fix (a build-time SHA-256
+  hash allowlist derived from the static build output) is not yet
+  implemented; see
   [`brig-id/core#20`](https://github.com/brig-id/core/issues/20) and
-  [`brig-id/web#3`](https://github.com/brig-id/web/issues/3).
+  [`brig-id/app#3`](https://github.com/brig-id/app/issues/3).
   Auditors should treat this as an open finding.
 
 ### 4.7 Cross-origin requests (CORS)
@@ -131,8 +158,8 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 These invariants are enforced in code and must be verified by auditors:
 
-1. **VSID stability:** same `(did_root, client_id, salt)` → same VSID; different `client_id` → different VSID.
-   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`
+1. **VSID stability:** same `(did_root, client_id)` → same VSID (the salt is a single deployment-wide value derived from `MASTER_KEY`, not a per-call input); different `client_id` → different VSID.
+   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
    - *Verify:* `vsid_is_stable` and `vsid_non_correlable_across_clients` tests in the same file.
 2. **VSID isolation:** VSID must never be derived from an alias or a virtual identity.
    - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
