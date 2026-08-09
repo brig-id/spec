@@ -27,23 +27,37 @@ preventing cross-RP identity correlation.
 
 ### Formula
 
+The `salt` is **not** per-user: it's a single value derived once per
+deployment from `MASTER_KEY`, then reused across every user's VSID.
+
 ```
+salt = HKDF-SHA3-256(ikm = MASTER_KEY, info = "brigid-vsid-salt")[..32]
+
 VSID = HKDF-SHA3-256(
-    ikm  = did_root_bytes,     // UTF-8 bytes of the user's root DID
-    salt = random_salt,         // 32 random bytes, stored encrypted per user
-    info = "brigid-vsid:" || client_id
-)
-→ encoded as lowercase hex string (64 chars)
+    ikm  = salt,                          // deployment-wide, from MASTER_KEY above
+    salt = none,                          // HKDF's own salt param is unused (zero-padded)
+    info = "brigid-vsid-v1" ||
+           u32_be(len(did_root)) || did_root ||
+           u32_be(len(client_id)) || client_id
+)[..32]
+→ encoded as unpadded base64url (43 chars)
 ```
+
+Length-prefixing `did_root` and `client_id` in `info` prevents collisions
+from the `:` characters that appear in both DIDs and, potentially, client
+IDs.
 
 ### Invariants
 
-1. Same `(did_root, client_id, salt)` → same VSID (deterministic).
+1. Same `(did_root, client_id)` → same VSID (deterministic; `salt` is
+   constant per deployment, not a per-call input).
 2. Different `client_id` → different VSID (unlinkable across RPs).
 3. VSID must **never** be derived from an alias or a virtual identity.
 4. VSID must **never** be derived from a username directly.
+5. Rotating `MASTER_KEY` changes `salt`, and therefore every user's VSID —
+   see the rotation runbook in [`operations.md`](./operations.md).
 
-*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`
+*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
 
 ---
 
