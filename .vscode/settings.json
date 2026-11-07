@@ -6,6 +6,9 @@
     "audit",
     "pqc",
     "security",
-    "ci"
+    "ci",
+    "ai",
+    "deps",
+    "docs"
   ]
 }
