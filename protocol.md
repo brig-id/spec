@@ -52,7 +52,8 @@ IDs.
 1. Same `(did_root, client_id)` → same VSID (deterministic; `salt` is
    constant per deployment, not a per-call input).
 2. Different `client_id` → different VSID (unlinkable across RPs).
-3. VSID must **never** be derived from an alias or a virtual identity.
+3. VSID must be derived from an **identity DID** only, never from an account DID, an
+   alias, a display name or a username (see [ADR-002](./decisions/002-accounts-and-identities.md)).
 4. VSID must **never** be derived from a username directly.
 5. Rotating `MASTER_KEY` changes `salt`, and therefore every user's VSID —
    see the rotation runbook in [`operations.md`](./operations.md).

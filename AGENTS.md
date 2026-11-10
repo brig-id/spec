@@ -57,6 +57,7 @@ Format: `type(scope): <emoji> description`
 | `audit` | `audit-checklist.md` |
 | `pqc` | `pqc.md` |
 | `security` | `security-model.md` |
+| `decisions` | `decisions/` |
 | `ci` | `.github/workflows/` |
 
 **Do not use a scope outside this list.** If a new document is added, update this table
