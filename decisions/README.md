@@ -10,6 +10,7 @@ the decision made, and the consequences.
 | ADR | Title | Status |
 |---|---|---|
 | [001](001-ring-eddsa-decoding-key-format.md) | `jsonwebtoken` + ring: EdDSA DecodingKey expects raw 32-byte public key | Accepted |
+| [002](002-accounts-and-identities.md) | Accounts and identities | Proposed |
 
 ## Format
 
