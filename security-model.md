@@ -24,7 +24,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 │  Client browser / native app                        │
 │  (untrusted — attacker may control)                 │
 └──────────────┬──────────────────────────────────────┘
-               │  HTTPS (TLS 1.3 only)
+               │  HTTPS (TLS 1.2 or 1.3, see §4.1)
 ┌──────────────▼──────────────────────────────────────┐
 │  brigid-api  (Axum HTTP server)                     │
 │  ─ rate limiting (tower-governor)                   │
@@ -71,29 +71,29 @@ brig·id is a self-hosted identity provider (IdP) offering:
 ## 4. Attack Surfaces
 
 ### 4.1 Transport layer
-- **Mitigation (optional built-in TLS path):** when `tls_cert`/`tls_key` are
-  configured, `leaf` terminates TLS itself via
-  `axum_server::tls_rustls::RustlsConfig::from_pem_file()`, which builds a
-  plain `rustls::ServerConfig::builder()` with no explicit protocol-version
-  restriction — so it currently accepts TLS 1.2 as well as TLS 1.3, not
-  "TLS 1.3 minimum" as an earlier version of this doc claimed (there is no
-  `builder_with_protocol_versions(&[&TLS13])` call anywhere in this
-  codebase). In the reference production deployment
-  (`server-leaf/deploy/compose.yaml`), TLS termination happens at Caddy
-  instead, in front of `leaf` running plain HTTP — this built-in path is for
-  deployments that don't front `leaf` with a separate TLS-terminating proxy.
-  **Auditors should treat "TLS 1.3 minimum" as an open finding**, not a
-  verified property, until either the code pins `builder_with_protocol_versions`
-  or this section is corrected to describe the actual minimum (TLS 1.2).
+- **Reference deployment:** Caddy terminates TLS in front of `leaf`, which
+  listens on plain HTTP inside the container network
+  (`server-leaf/deploy/compose.yaml`). The accepted TLS versions are Caddy's
+  defaults: TLS 1.2 and 1.3.
+- **Built-in TLS (optional):** when `tls_cert`/`tls_key` are configured,
+  `leaf` terminates TLS itself via
+  `axum_server::tls_rustls::RustlsConfig::from_pem_file()`, with rustls'
+  default protocol versions: TLS 1.2 and 1.3. The minimum is **TLS 1.2**, not
+  1.3: nothing restricts the versions (no
+  `builder_with_protocol_versions(&[&TLS13])` call).
   No OpenSSL-backed TLS connections either way; openssl-sys appears as a
   transitive dependency of `webauthn-rs-core` (via `webauthn-attestation-ca`)
   for X.509 attestation certificate parsing — not for network connections.
   - *Verify:* run `cargo deny check bans`; the `deny.toml` skip-tree exception for `openssl-sys` documents this path. `cargo tree -i openssl-sys` shows it present; `cargo deny check bans` confirms it is allowed only as an attestation-parsing dep, not for TLS.
-  - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs) — `RustlsConfig::from_pem_file()` call, `bind_rustls()`.
+  - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/main/src/main.rs) — `RustlsConfig::from_pem_file()` call, `bind_rustls()`.
 - **HSTS** enforced via `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
 
 ### 4.2 Authentication endpoint (`/auth/*`)
-- **Mitigation:** rate limiting — 20 req/min per IP via `tower-governor`.
+- **Mitigation:** rate limiting — 20 req/min per client IP via `tower-governor`
+  (burst of 5), on `/auth/*` and `/account/*`. Behind a reverse proxy the
+  client IP is read from `X-Forwarded-For`, which requires
+  `security.trust_forwarded_for = true`; without it every request carries the
+  proxy's address and all clients share a single bucket.
 - **Mitigation:** WebAuthn RP ID strict (no wildcard); signature counter verified on every login.
 - **Mitigation:** challenges are single-use and expire (TTL enforced in `brigid-webauthn`).
 
@@ -113,7 +113,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
   token remains revoked across service restarts even if the in-memory
   cache has been wiped.
 - **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the in-memory cache is always bounded, and the persistent table is pruned on each logout (`DELETE FROM jti_blacklist WHERE exp <= ?`).
-- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()` (in-memory layer); [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — `blacklist_jti` / `is_jti_blacklisted` (durable layer); [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs).
+- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()` (in-memory layer); [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `blacklist_jti` / `is_jti_blacklisted` (durable layer); [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/routes/auth.rs).
 
 ### 4.4b Session lifetime
 - **Threat:** a token outlives the account it was issued for, or an idle
@@ -131,16 +131,16 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 ### 4.6 Cross-site scripting (XSS)
 - **Mitigation:** `Content-Security-Policy` header restricts `default-src`,
-  `frame-ancestors`, `object-src`, and `base-uri`. `brigid-api/src/router.rs`
-  (`build_router()`'s `security_headers` layer, `core` repo) applies a copy of
-  this policy, but in axum 0.8 a `.layer()` only wraps routes/fallback that
-  exist *at call time* — since `server-leaf` attaches the static-UI fallback
-  service *after* `build_router()` returns, that inner layer never reaches
-  UI-facing responses (`/login`, `/register`, static assets, …). The policy
-  that actually covers every response `leaf` serves is the one (re-)applied
-  in [`server-leaf/src/lib.rs`](https://github.com/brig-id/server-leaf/blob/main/src/lib.rs)'s
-  `apply_ui_fallback()`, genuinely last in the middleware stack. The two
-  copies have since diverged — treat `server-leaf`'s as authoritative.
+  `frame-ancestors`, `object-src`, and `base-uri`. Two policies exist, by
+  design:
+  - API responses (JSON only) get the strict policy of
+    `brigid-api/src/router.rs` (`build_router()`), with no inline source.
+  - UI responses (`/login`, `/register`, static assets, …) get the policy of
+    [`server-leaf/src/lib.rs`](https://github.com/brig-id/server-leaf/blob/main/src/lib.rs)'s
+    `apply_ui_fallback()`. It is applied after the static-file fallback is
+    attached, because in axum 0.8 a `.layer()` only wraps the routes that
+    exist when it is called: the layer inside `build_router()` cannot reach
+    a fallback added later.
 - **Inline scripts and styles by hash:** the Qwik static (SSG) build emits
   inline `<script>`/`<style>` content (its resumability bootstrap), and with
   no per-request rendering step a nonce can't reach it. Instead `app`'s build
@@ -168,19 +168,19 @@ brig·id is a self-hosted identity provider (IdP) offering:
 These invariants are enforced in code and must be verified by auditors:
 
 1. **VSID stability:** same `(did_root, client_id)` → same VSID (the salt is a single deployment-wide value derived from `MASTER_KEY`, not a per-call input); different `client_id` → different VSID.
-   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
+   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
    - *Verify:* `vsid_is_stable` and `vsid_non_correlable_across_clients` tests in the same file.
 2. **VSID isolation:** VSID must be derived from an identity DID only, never from an account DID, an alias, a display name or a username ([ADR-002](./decisions/002-accounts-and-identities.md)).
-   - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
+   - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
    - *Verify:* `vsid_never_derived_from_alias` test asserts `compute_vsid` rejects non-`did:web:` inputs with an error.
-3. **Zero raw secrets in storage:** every *sensitive* field written by `brigid-store` (credential bodies, signing-key seeds, refresh-token material, user-supplied identifiers, etc.) MUST be encrypted with AES-256-GCM via `brigid-crypto` before the `INSERT` reaches SQLite. Non-secret *operational metadata* — table primary keys, foreign keys, `expires_at` timestamps, schema-migration markers, and the `jti_blacklist` opaque token-ID column — may be stored in plaintext so the database can be queried and pruned. The `jti_blacklist` token ID is intentionally treated as operational metadata rather than session-bound state: the JTI is a random UUID v4 with no link to the user, the credential, or the session payload (the OIDC session itself is rendered unusable by the same row's existence, which is the only purpose of the table). What MUST never appear in plaintext is any value that would reveal a credential, a private key, a user-supplied identifier, or the contents of an active session.
-   - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — see the `encrypt_field` / `decrypt_field` helpers and their call sites in every public store function.
+3. **Zero raw secrets in storage:** every *sensitive* field written by `brigid-store` (credential bodies, signing-key seeds, user-supplied identifiers, etc.) MUST be encrypted with AES-256-GCM via `brigid-crypto` before the `INSERT` reaches SQLite. Non-secret *operational metadata* — table primary keys, foreign keys, `expires_at` timestamps, schema-migration markers, and the `jti_blacklist` opaque token-ID column — may be stored in plaintext so the database can be queried and pruned. The `jti_blacklist` token ID is intentionally treated as operational metadata rather than session-bound state: the JTI is a random UUID v4 with no link to the user, the credential, or the session payload (the OIDC session itself is rendered unusable by the same row's existence, which is the only purpose of the table). What MUST never appear in plaintext is any value that would reveal a credential, a private key, a user-supplied identifier, or the contents of an active session.
+   - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — see the `encrypt_field` / `decrypt_field` helpers and their call sites in every public store function.
    - *Verify:* `dump_contains_no_plaintext` integration test in `brigid-store` — it asserts the secret payloads do not appear in a raw `.dump`, but tolerates plaintext metadata columns by construction.
 4. **No secrets in logs:** `tracing` spans must not capture key material, WebAuthn private keys, or OIDC signing keys.
 5. **JWT replay control:** every accepted token MUST pass through one of the two `brigid-oidc` validation paths.
    - **Bearer path** (production middleware): `decode_token` verifies the signature, standard claims, and consults `JtiStore::is_blacklisted()`. The token remains usable for repeated requests until `exp` or until logout writes its `jti` to the blacklist.
    - **Single-use path** (reserved for one-shot consumption): `validate_token` performs the same checks plus an atomic `JtiStore::check_and_insert()`, so a second call with the same `jti` is rejected as a replay.
-   - *Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`; [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`, `is_blacklisted()`.
+   - *Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`; [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`, `is_blacklisted()`.
    - *Verify:* `replayed_jti_is_rejected` test in `jti.rs` (single-use path) and the logout integration test in `brigid-api` (bearer path).
 6. **Key zeroization:** `OidcSigningKey` inner `SigningKey` (ed25519-dalek) implements `ZeroizeOnDrop`.
 
@@ -193,7 +193,10 @@ Startup: BRIGID_MASTER_KEY (env var)  OR  BRIGID_MASTER_KEY_FILE (Docker/Swarm/K
          ↓
          loader validates 64-char ASCII hex, decodes to 32 bytes
          ↓
-         HKDF derives per-context keys (storage, token signing)
+         HKDF derives per-context keys (per-account storage keys, the key
+         that encrypts stored OIDC signing seeds, the VSID salt)
+         ↓
+         OIDC signing keys are read from the database and decrypted
          ↓
 Runtime: keys held in process memory only
          ↓
@@ -223,7 +226,3 @@ PQC hybrid signatures will be activated in a future phase.
 - Browser/client security beyond CSP and HTTPS
 - Certificate authority / PKI management (operator responsibility)
 - Network-level DDoS mitigation (operator responsibility — put behind a reverse proxy/CDN)
-
----
-
-*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*
