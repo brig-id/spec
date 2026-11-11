@@ -155,8 +155,9 @@ This audit covers:
 - [ ] `aud` is verified against `expected_client_id`
 
 ### HTTP
-- [ ] All `/auth/*` and `/account/*` routes are behind the rate limiter, and behind a
-      reverse proxy the limit is per client (`security.trust_forwarded_for`), not per proxy
+- [ ] All `/auth/*` and `/account/*` routes are behind a rate limiter (ceremonies:
+      20 req/min; session routes: 60 req/min), and behind a reverse proxy the limit is per
+      client (`security.trust_forwarded_for`), not per proxy
 - [ ] CORS `allow_origin` is explicit (no `Any`)
 - [ ] `X-Content-Type-Options: nosniff` is set
 - [ ] `X-Frame-Options: DENY` is set
