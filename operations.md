@@ -111,11 +111,11 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    file-based form above consumes the same `/run/secrets/master_key.new`
    that step 3 staged.
 
-   On success the command prints two consequences to stderr that this
-   runbook's step 6 depends on: every user's VSID changes for every relying
-   party (§2 below has no mitigation for this — it cannot be preserved), and
-   every `id_token` issued before the rotation is invalidated immediately,
-   not just at natural expiry.
+   On success the command prints the consequence this runbook's step 6
+   depends on: every user's VSID changes for every relying party, because
+   the VSID salt is derived from the master key. Stored OIDC signing keys
+   are re-encrypted under the new key and keep working, so tokens issued
+   before the rotation stay valid until they expire.
 5. **Publish the new key to the orchestrator** so the service restarts with the
    matching key material.
 
@@ -177,14 +177,25 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 
 ## 2. OIDC Signing Key Rotation
 
-The OIDC signing key (`OidcSigningKey`) is generated in memory at startup from the
-MASTER_KEY-derived entropy. Rotating the MASTER_KEY implicitly rotates the signing key.
-*Implementation:* [`brigid-crypto` — `hkdf::derive_user_key`](https://github.com/brig-id/crypto/blob/350892951381f57e34d3ce9f983915860431c063/src/hkdf.rs); called at server startup in [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs).
+OIDC signing keys are stored in the database (`oidc_keys` table), their seeds
+encrypted with a key derived from the master key. Rotating the master key
+re-encrypts them; it does not replace them.
 
-For zero-downtime rotation:
-1. Add the new signing key to the JWKS endpoint (dual-key mode — planned Phase B).
-2. Wait for in-flight tokens to expire.
-3. Remove the old signing key from JWKS.
+To rotate the signing key:
+
+```bash
+leaf rotate-oidc-key      # reads BRIGID_MASTER_KEY_FILE / BRIGID_MASTER_KEY
+# then restart leaf
+```
+
+1. The command stores a new key as current and marks the previous one retired.
+2. After the restart, `leaf` signs with the new key. The retired key stays in the JWKS and
+   keeps verifying the tokens it signed for a grace period of two hours (tokens live one).
+3. A retired key past its grace period is deleted at a later start.
+
+The `kid` of a key is its RFC 7638 JWK thumbprint.
+*Implementation:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/main/src/main.rs) — `rotate_oidc_key()`, `load_oidc_keys()`;
+[`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `add_oidc_signing_key()`, `prune_oidc_keys()`.
 
 ---
 
@@ -207,13 +218,12 @@ For zero-downtime rotation:
 
 ### Suspected WebAuthn credential compromise
 
-1. Identify the compromised credential via the `credential_id` in logs.
-2. Delete the credential from the database:
-   ```sql
-   -- Via the admin API (to be implemented)
-   DELETE FROM credentials WHERE credential_id = '...';
-   ```
-3. Notify the user to register a new passkey.
+1. The account owner removes the passkey from their account page
+   (`DELETE /auth/passkeys/{id}`), after adding another one: the last passkey of an
+   account cannot be deleted.
+2. There is no operator-side removal yet. WebAuthn credential IDs are stored inside an
+   encrypted blob (`webauthn_credentials.data`), so a credential cannot be selected by its
+   ID in SQL; an admin path is to be implemented.
 
 ### Token replay attack detected
 
@@ -247,16 +257,14 @@ If the `JtiStore` reports a replay:
 
 ## 5. Monitoring and Alerting
 
-Key events to monitor via structured logs (`tracing` JSON output):
+`leaf` exposes Prometheus metrics on an internal listener
+(`server.metrics_port`, never published): request counts by method, matched route and
+status, and latency histograms. Logs are structured JSON (`tracing`).
 
-| Event | Log field | Alert threshold |
+| Event | Where to see it | Alert threshold |
 |---|---|---|
-| Rate limit triggered | `event = "rate_limit"`, `ip` | Sustained > 100/min → investigate |
-| JTI replay detected | `event = "jti_replay"` | Any occurrence |
-| WebAuthn assertion failed | `event = "auth_failed"` | > 10/min per IP |
+| Rate limit triggered | `429` responses on `/auth/*`, `/account/*` (metrics) | Sustained > 100/min → investigate |
+| Sign-in failed | `401` responses on `/auth/login/finish` (metrics) | Sustained rise |
+| Internal error (database included) | `500` responses (metrics); log line `internal server error` with its `error` field | Any occurrence |
 | Server startup with missing key | Server refuses to start | Always alert |
-| DB error | `event = "db_error"` | Any occurrence |
-
----
-
-*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*
+| UI served without CSP hashes | Startup warning `no dist/csp-hashes.json` | Any occurrence |
