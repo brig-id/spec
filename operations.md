@@ -111,11 +111,11 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    file-based form above consumes the same `/run/secrets/master_key.new`
    that step 3 staged.
 
-   On success the command prints the consequence this runbook's step 6
-   depends on: every user's VSID changes for every relying party, because
-   the VSID salt is derived from the master key. Stored OIDC signing keys
-   are re-encrypted under the new key and keep working, so tokens issued
-   before the rotation stay valid until they expire.
+   A rotation changes nothing for users or relying parties. The OIDC
+   signing keys and the VSID secret are stored in the database and are
+   re-encrypted under the new key: tokens issued before the rotation stay
+   valid until they expire, and every VSID (the `sub` a relying party knows
+   a user by) keeps its value.
 5. **Publish the new key to the orchestrator** so the service restarts with the
    matching key material.
 
@@ -213,8 +213,14 @@ The `kid` of a key is its RFC 7638 JWK thumbprint.
 4. Passkey re-registration is **not** required — only public key material
    (credential IDs and attestation) is stored; the passkey private key never
    leaves the authenticator.
-5. Invalidate all active OIDC sessions at relying parties.
-6. Report to security contact (see `SECURITY.md`).
+5. Rotate the OIDC signing key (`leaf rotate-oidc-key`, §2): whoever held the master key
+   and a copy of the database could decrypt its seed and sign tokens.
+6. The VSID secret is not changed by the rotation, by design
+   ([ADR-006](./decisions/006-vsid-secret.md)): relying parties keep recognising their
+   users. Someone holding the leaked key and a database copy can compute VSIDs, which tells
+   them nothing they could not already read in that copy.
+7. Invalidate all active OIDC sessions at relying parties.
+8. Report to security contact (see `SECURITY.md`).
 
 ### Suspected WebAuthn credential compromise
 

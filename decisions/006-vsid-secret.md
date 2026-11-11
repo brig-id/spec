@@ -57,6 +57,14 @@ incident is in the "deliberate migration" case above.
   Whether the VSID input should be the identity's id alone is left to the decision on what
   DIDs are for.
 
+## Implementation
+
+- `core` (brig-id/core#74): table `server_secrets`, `EncryptedStore::vsid_secret`,
+  re-encryption in `rotate_master_key`.
+- `server-leaf` (brig-id/server-leaf#64): the secret is read from the store at startup;
+  `rotate-key` records it under the old key first, so a database that was never started
+  by a server storing it keeps its VSIDs too.
+
 ## References
 
 - [ADR-002](002-accounts-and-identities.md); `protocol.md` §2; `operations.md` §1, §3
