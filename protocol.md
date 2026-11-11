@@ -54,11 +54,16 @@ IDs.
 2. Different `client_id` → different VSID (unlinkable across RPs).
 3. VSID must be derived from an **identity DID** only, never from an account DID, an
    alias, a display name or a username (see [ADR-002](./decisions/002-accounts-and-identities.md)).
+   *Implementation status:* tokens issued for an identity
+   (`POST /account/identities/{id}/token`) follow this rule. The account session token
+   issued by `/auth/login/finish` and `/auth/session/refresh` still derives its `sub` from
+   the account DID; separating account sessions from relying-party tokens is the open item
+   of ADR-002.
 4. VSID must **never** be derived from a username directly.
 5. Rotating `MASTER_KEY` changes `salt`, and therefore every user's VSID —
    see the rotation runbook in [`operations.md`](./operations.md).
 
-*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
+*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
 
 ---
 
@@ -89,7 +94,11 @@ Client                          brigid-api                      brigid-store
 ### Security checks (registration)
 - RP ID must exactly match the server domain (no wildcard).
 - Challenge must be single-use (deleted after verification).
-- Attestation verified if attestation conveyance is `direct` or `enterprise`.
+- The server part of the username must be this server's domain: an account cannot be
+  registered under a domain the server does not control.
+- Attestation is not requested (`attestation: "none"`, the `webauthn-rs` passkey
+  profile): the server learns no authenticator make or model, and does not restrict
+  which authenticators may register.
 
 ---
 
@@ -129,7 +138,9 @@ answers `401`.
 
 ### Security checks (authentication)
 - Challenge must be single-use (deleted after verification).
-- Signature counter must be strictly greater than stored value (counter replay detection).
+- Signature counter: when the authenticator maintains one, it must be greater than the
+  stored value (cloned-authenticator detection). Synced passkeys report a counter of `0`
+  on every assertion; `webauthn-rs` accepts `0` when the stored value is also `0`.
 - RP ID verified against server domain.
 
 ---
@@ -154,8 +165,8 @@ answers `401`.
   "exp":        1234567890,
   "iat":        1234567890,
   "jti":        "<uuid>",            // unique per token — replay prevention
-  "server":     "example.com",       // issuing server hostname — not user-identifying
-  "alias_type": "root"
+  "server":     "example.com",       // issuing server hostname, from its configuration
+  "alias_type": "public"             // constant; to be removed (ADR-002)
 }
 ```
 
@@ -205,8 +216,8 @@ provided for future flows that need single-use semantics. The shared `JtiStore`
 remains bounded because both paths key on `jti` with `TTL = exp` and expired
 entries are evicted on access.
 
-*Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`;
-[`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` extractor (Path B).
+*Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`;
+[`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` extractor (Path B).
 
 ---
 
@@ -239,7 +250,10 @@ that do not apply to the WebAuthn flow are omitted from the response.
 
 ### `GET /.well-known/jwks.json`
 
-JWK Set containing the Ed25519 public key used for token signing.
+JWK Set containing the Ed25519 public keys that verify tokens: the current signing
+key first, then any key retired by a rotation and still within its grace period
+(see [`operations.md`](./operations.md) §2). A token names its key in the `kid` header;
+a token without `kid`, or with an unknown one, is rejected.
 
 ```json
 {
@@ -254,9 +268,9 @@ JWK Set containing the Ed25519 public key used for token signing.
 }
 ```
 
-**Important implementation note:** `jsonwebtoken v9` (ring backend) expects the
-`DecodingKey` to be initialised with raw 32-byte public key bytes, **not**
-SubjectPublicKeyInfo DER. See [`brigid-oidc/src/key.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/key.rs) — `decoding_key()`.
+**Important implementation note:** `jsonwebtoken`'s `DecodingKey::from_ed_der` must be
+given the raw 32-byte public key, **not** SubjectPublicKeyInfo DER
+([ADR-001](./decisions/001-ring-eddsa-decoding-key-format.md)). See [`brigid-oidc/src/key.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/key.rs) — `decoding_key()`.
 
 ---
 
@@ -266,7 +280,7 @@ SubjectPublicKeyInfo DER. See [`brigid-oidc/src/key.rs`](https://github.com/brig
 
 Exposes the server's DID Web document, enabling DID-based identity resolution.
 
-*Reference:* [`brigid-did/src/web.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-did/src/web.rs) — `did_web_document()`
+*Reference:* [`brigid-did/src/web.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-did/src/web.rs) — `did_web_document()`
 
 ---
 
@@ -282,7 +296,7 @@ Client                  brigid-api          brigid-store          JtiStore (in-m
   │                        │───────── INSERT ────▶│ (durable, survives  │
   │                        │                       │  restart)           │
   │                        │ blacklist(jti, exp) ────────────────────▶│ TTL = exp
-  │◄── 204 No Content ────│                       │                     │
+  │◄── 200 OK ────────────│                       │                     │
   │                        │                       │                     │
   │── (any request with same token) ▶│            │                     │
   │                        │ AuthenticatedClaims:  │                     │
@@ -302,8 +316,4 @@ Client                  brigid-api          brigid-store          JtiStore (in-m
 - Both stores expire entries at the token's `exp` (TTL in memory, `WHERE expires_at > now` in SQL), so neither grows unbounded.
 - `POST /auth/logout` is protected by the `AuthenticatedClaims` extractor: malformed or expired tokens are rejected before the handler runs.
 
-*Reference:* [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs), [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs), [`brigid-store` JTI blacklist](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/lib.rs) — see also [`security-model.md` §4.4](./security-model.md#44-session-termination-logout) and [`audit-checklist.md` §2.2](./audit-checklist.md).
-
----
-
-*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*
+*Reference:* [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/routes/auth.rs), [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs), [`brigid-store` JTI blacklist](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/lib.rs) — see also [`security-model.md` §4.4](./security-model.md#44-session-termination-logout) and [`audit-checklist.md` §2.2](./audit-checklist.md).
