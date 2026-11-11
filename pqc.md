@@ -34,7 +34,7 @@ are used simultaneously. A break in one does not compromise the other.
 **Hybrid combination:** shared secrets from X25519 and ML-KEM-768 are concatenated
 and fed into HKDF-SHA3-256 to produce the final shared key.
 
-*Reference:* [`src/kem.rs`](https://github.com/brig-id/crypto/blob/350892951381f57e34d3ce9f983915860431c063/src/kem.rs)
+*Reference:* [`src/kem.rs`](https://github.com/brig-id/crypto/blob/main/src/kem.rs)
 
 ### 2.2 Signatures — ML-DSA-65 + Ed25519
 
@@ -50,7 +50,7 @@ and fed into HKDF-SHA3-256 to produce the final shared key.
 **Hybrid combination:** both signatures are produced independently and concatenated.
 Verification requires both to be valid.
 
-*Reference:* [`src/dsa.rs`](https://github.com/brig-id/crypto/blob/350892951381f57e34d3ce9f983915860431c063/src/dsa.rs)
+*Reference:* [`src/dsa.rs`](https://github.com/brig-id/crypto/blob/main/src/dsa.rs)
 
 ---
 
@@ -100,7 +100,3 @@ Using hybrids ensures:
 - [FIPS 203 — ML-KEM](https://csrc.nist.gov/pubs/fips/203/final) (Module-Lattice-Based Key-Encapsulation Mechanism)
 - [FIPS 204 — ML-DSA](https://csrc.nist.gov/pubs/fips/204/final) (Module-Lattice-Based Digital Signature Algorithm)
 - [NIST IR 8413 — Status of PQC Standardization](https://csrc.nist.gov/publications/detail/nistir/8413/final)
-
----
-
-*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*
