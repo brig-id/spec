@@ -1,6 +1,6 @@
 # ADR-003 — Usernames and passkey-only quick signup
 
-**Status:** Proposed
+**Status:** Accepted (amended 2026-11-11: the username is hidden)
 
 ## Context
 
@@ -21,19 +21,34 @@ discoverable-credential challenge, and the user is taken from the passkey's user
 
 ### Account username
 
-- It is a **sign-in handle**, not an identifier anything external depends on: VSIDs, ID
-  tokens and identity DIDs do not contain it.
+- It is an **internal sign-in handle**, not an identifier anything external depends on:
+  VSIDs, ID tokens and recovery codes do not contain it ([ADR-007](007-identifiers.md),
+  [ADR-004](004-account-recovery.md)).
+- **It is hidden from the user.** Every new account gets a generated one (readable, random,
+  e.g. `swift-otter-4821`); sign-in uses the passkey alone (discoverable credential), so the
+  user never types it. Existing accounts keep the username they chose.
 - It stays unique per server (`username_index`) and keeps the existing syntax rules.
-- Renaming it is allowed in principle. What a rename must update: the encrypted `username`,
-  the `username_index`, and the account's `did_web` (whose document is not published to
-  relying parties). Nothing else. The rename endpoint is not built yet.
+- **Renaming it must stay possible** (later, from the account settings) and breaks nothing:
+  what a rename updates is the encrypted `username` and the `username_index`. Nothing else
+  refers to it. The rename endpoint is not built yet.
 
-### Quick signup (passkey only)
+### Signup
 
-- Signing up without typing a username is allowed: the server generates one (readable,
-  random, e.g. `swift-otter-4821`), the passkey is created as usual, and the user signs in
-  later with username-less login. The username can be changed afterwards.
-- Prerequisite met: username-less login (core#18) and passkey autofill (app#2).
+- Signup is **passkey only**: no username field. The server generates the username, the
+  passkey is created, and the account exists only once the passkey is stored.
+- The server opens the session at the end of registration: one passkey prompt, not two.
+- Then a minimal onboarding page: the passkey's name, pre-filled with its provider when the
+  authenticator says which one it is (AAGUID, e.g. "Google Password Manager", "1Password"),
+  editable; and the recovery code ([ADR-004](004-account-recovery.md)), to copy or
+  download.
+
+### Sign-in
+
+- The server is the one serving the page by default. Another server is chosen by its
+  domain and the browser is sent to that server's sign-in page: a passkey only works on
+  the domain that created it. A directory of public servers may come later.
+- "Use my passkey" (discoverable credential) is the main action. Passkey autofill needs an
+  input field, so it is offered only where one exists.
 
 ### Identity usernames ("fixed or temporary", core#50)
 

@@ -21,7 +21,12 @@
 
 ## 2. VSID Computation
 
-VSID (Verifiable Subject Identifier) is the stable, opaque `sub` claim in OIDC tokens.
+VSID (Virtual Stable Identifier) is the stable, opaque `sub` claim in OIDC tokens.
+
+> **Accepted, not implemented:** [ADR-007](./decisions/007-identifiers.md) replaces the
+> identity DID in the formula below by the identity's UUID (`info = "brigid-vsid-v2" ||
+> identity_uuid || u32_be(len(client_id)) || client_id`) and removes account and identity
+> DIDs. The rest of this section describes the code as it runs today.
 It ensures that the same user has a **different identifier per relying party**,
 preventing cross-RP identity correlation.
 
