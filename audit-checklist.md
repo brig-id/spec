@@ -21,9 +21,8 @@ This audit covers:
 | `brigid-api` | 6 | Axum HTTP server |
 | `web` (`brig-id/app`) | 6 | Qwik UI, built as static (SSG) files and served by `server-leaf` |
 
-> The `brigid-ui` Leptos SSR crate named in earlier phase docs was replaced
-> by the standalone `brig-id/app` repo (Qwik, static-site-generated) — there
-> is no server-rendered UI crate in `core` to audit.
+> There is no server-rendered UI: `brig-id/app` is a static (SSG) build, and
+> `core` contains no UI crate.
 
 ---
 
@@ -39,13 +38,13 @@ This audit covers:
 
 ### 2.2 Token forgery
 - [ ] Can an attacker forge an ID token without the server's Ed25519 private key?
-  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
+  - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
 - [ ] Can an attacker replay a valid ID token?
-  - *Check (single-use path):* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()` calls `JtiStore::check_and_insert()` so a second presentation of the same `jti` is rejected.
-  - *Check (bearer path):* [`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` calls `decode_token()`; bearer tokens are reusable until `exp` or logout-driven blacklist entry, and the auditor must confirm `decode_token` does NOT insert into `JtiStore` (otherwise legitimate repeated requests would be locked out).
+  - *Check (single-use path):* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()` calls `JtiStore::check_and_insert()` so a second presentation of the same `jti` is rejected.
+  - *Check (bearer path):* [`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` calls `decode_token()`; bearer tokens are reusable until `exp` or logout-driven blacklist entry, and the auditor must confirm `decode_token` does NOT insert into `JtiStore` (otherwise legitimate repeated requests would be locked out).
 - [ ] Does any ID-token claim expose a username, alias, raw DID, or other
       stable cross-RP user identifier?
-  - *Check `sub`:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`.
+  - *Check `sub`:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`.
   - *Check every other claim in the issued token (`iss`, `aud`, `exp`,
     `iat`, `jti`, `server`, `alias_type`, plus any future additions):*
     none of them may carry a stable user-identifying value. In particular,
@@ -55,13 +54,13 @@ This audit covers:
     `iss` and `server` are issuer-side and therefore safe; everything else
     must be either opaque (`sub` = VSID) or random (`jti` = UUID v4).
 - [ ] Is a logged-out token (via `POST /auth/logout`) rejected on subsequent requests?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
 - [ ] Is the JTI blacklist bounded (no unbounded growth)?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — entries expire at token `exp`
+  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — entries expire at token `exp`
 
 ### 2.3 Identity correlation
 - [ ] Can two relying parties correlate users via the `sub` claim?
-  - *Check:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-identity/src/vsid.rs) — VSID includes `client_id` in HKDF `info`
+  - *Check:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — VSID includes `client_id` in HKDF `info`
 - [ ] Can VSID be derived from an alias?
   - *Check:* `brigid-identity` tests — `vsid_never_derived_from_alias`
 
@@ -79,34 +78,30 @@ This audit covers:
 
 ### 2.6 XSS and injection
 - [ ] Does the server emit a strict `Content-Security-Policy` header?
-  - *Check:* `server-leaf/src/lib.rs` — `apply_ui_fallback()`'s security
-    header layer, applied genuinely last (after `.fallback_service()`), is
-    what actually covers every response `leaf` serves, including the static
-    UI files. `brigid-api/src/router.rs`'s `build_router()` applies its own
-    copy of this layer, but in axum 0.8 a `.layer()` only wraps
-    routes/fallback that exist *at call time* — since `server-leaf` attaches
-    the fallback service after `build_router()` returns, that inner layer
-    never reaches UI-facing responses. The two copies have since diverged;
-    treat `server-leaf`'s as authoritative.
+  - *Check:* two policies, see `security-model.md` §4.6. API responses:
+    `brigid-api/src/router.rs` (`build_router()`), no inline source. UI
+    responses: `server-leaf/src/lib.rs` (`apply_ui_fallback()`, `ui_csp()`),
+    applied after the static-file fallback is attached so that it covers it.
 - [ ] Does the CSP include `unsafe-inline` for scripts or styles?
-  - *Check:* as of this writing it **does**, as a known, tracked stopgap —
-    `script-src`/`style-src` carry `'unsafe-inline'` because the Qwik SSG
-    build emits inline `<script>`/`<style>` content. `style-src`/`font-src`
-    also allow the third-party origin `https://fonts.bunny.net`, the
-    external font host `app` loads from. The real fix (build-time SHA-256
-    hash allowlist, generated from the static build output) is not yet
-    implemented; TODO/phases tracking has moved to
-    [GitHub Project 1](https://github.com/orgs/brig-id/projects/1) — see
-    `brig-id/core#20`. Auditors should treat this as an open finding, not a
-    false positive in this checklist.
+  - *Check:* it must not on a deployed instance. `ui_csp()` allows the inline
+    `<script>`/`<style>` blocks of the Qwik build by `'sha256-…'` hash, read
+    from `dist/csp-hashes.json` (written by `app`'s `scripts/csp-hashes.mjs`).
+    Without that manifest it falls back to `'unsafe-inline'` and logs a
+    warning at startup: request `/login/` on the instance under audit and
+    read the `Content-Security-Policy` header. `style-src`/`font-src` also
+    allow the third-party font host `https://fonts.bunny.net`.
 - [ ] Can an attacker inject HTML into rendered pages?
   - *Check:* there is no server-rendered HTML — the UI is a Qwik static
     (SSG) build served as-is by `server-leaf`; Qwik's JSX escapes all
     dynamic values by default at build time.
 
 ### 2.7 Transport security
-- [ ] Is TLS 1.2 rejected? / Is TLS 1.3 minimum enforced?
-  - *Check:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/3c87d7d660ad61a2a228515ff831c48450da47ba/src/main.rs) — `ServerConfig::builder_with_protocol_versions(&[&TLS13])`
+- [ ] Which TLS versions are accepted?
+  - *Check:* TLS 1.2 and 1.3, in both setups (`security-model.md` §4.1):
+    Caddy's defaults in the reference deployment, rustls' defaults when
+    `leaf` terminates TLS itself
+    ([`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/main/src/main.rs),
+    `RustlsConfig::from_pem_file()`). TLS 1.3 is not enforced as a minimum.
 - [ ] Is OpenSSL in the dependency tree?
   - *Check:* `cargo tree -i openssl-sys` — present as transitive dep of webauthn-rs-core (X.509 attestation parsing); must NOT be used for TLS (`cargo deny check bans` confirms)
 
@@ -127,9 +122,10 @@ This audit covers:
     the subcommand does not call `MasterKey::from_env` at all, since both
     the old and new key are needed simultaneously and only one can occupy
     `BRIGID_MASTER_KEY`.
-- [ ] Are operators warned that VSIDs and the OIDC signing key change on rotation?
-  - *Check:* `rotate_key()` in `server-leaf/src/main.rs` prints both
-    consequences to stderr on success; also documented in `operations.md` §3.
+- [ ] Are operators warned that VSIDs change on rotation?
+  - *Check:* `rotate_key()` in `server-leaf/src/main.rs` prints it to stderr
+    on success; also documented in `operations.md` §1. Stored OIDC signing
+    keys are re-encrypted and keep working: issued tokens stay valid.
 
 ---
 
@@ -144,7 +140,7 @@ This audit covers:
 ### WebAuthn
 - [ ] RP ID is strict (exact match to `domain` config, no suffix matching)
 - [ ] Challenge TTL is enforced (challenges expire)
-- [ ] Attestation verification is not disabled in production config
+- [ ] Attestation is not requested (`attestation: "none"`); confirm no code path relies on it
 
 ### OIDC
 - [ ] `exp` is always set and checked
@@ -159,7 +155,8 @@ This audit covers:
 - [ ] `aud` is verified against `expected_client_id`
 
 ### HTTP
-- [ ] All `/auth/*` routes are behind the rate limiter
+- [ ] All `/auth/*` and `/account/*` routes are behind the rate limiter, and behind a
+      reverse proxy the limit is per client (`security.trust_forwarded_for`), not per proxy
 - [ ] CORS `allow_origin` is explicit (no `Any`)
 - [ ] `X-Content-Type-Options: nosniff` is set
 - [ ] `X-Frame-Options: DENY` is set
@@ -244,7 +241,3 @@ pnpm test.e2e                        # Playwright suite — register/login/passk
 
 See [`SECURITY.md`](./SECURITY.md) for the CVD process and contact details.
 All security reports should be submitted via GitHub's private vulnerability reporting.
-
----
-
-*Last updated: Phase 8 (audit readiness). Covers Phases 1–7.*
