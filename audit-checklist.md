@@ -122,10 +122,13 @@ This audit covers:
     the subcommand does not call `MasterKey::from_env` at all, since both
     the old and new key are needed simultaneously and only one can occupy
     `BRIGID_MASTER_KEY`.
-- [ ] Are operators warned that VSIDs change on rotation?
-  - *Check:* `rotate_key()` in `server-leaf/src/main.rs` prints it to stderr
-    on success; also documented in `operations.md` §1. Stored OIDC signing
-    keys are re-encrypted and keep working: issued tokens stay valid.
+- [ ] Does a rotation leave VSIDs and issued tokens unchanged?
+  - *Check:* the VSID secret and the OIDC signing keys are stored and
+    re-encrypted by `rotate_master_key()` (`server_secrets`, `oidc_keys`).
+    `server-leaf`'s test `rotate_key_cli_round_trip_login_works_with_new_key`
+    signs in before and after `rotate-key` and compares the `sub`;
+    `brigid-store`'s `vsid_secret_survives_a_master_key_rotation` covers the
+    store alone.
 
 ---
 

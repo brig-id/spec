@@ -101,7 +101,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** challenges are single-use and expire (TTL enforced in `brigid-webauthn`).
 
 ### 4.3 Token issuance
-- **Mitigation:** `sub` claim = VSID (derived from `(did_root, client_id)` and a deployment-wide salt keyed off `MASTER_KEY`) — stable and opaque per RP.
+- **Mitigation:** `sub` claim = VSID (derived from `(did_root, client_id)` and a deployment-wide secret stored encrypted in the database) — stable and opaque per RP.
 - **Mitigation:** every issued ID Token carries a unique `jti` (UUID v4), bounded lifetime via `exp`, and is rejected once blacklisted by logout (see 4.4). The `JtiStore` evicts expired entries so it is always bounded.
 - **Mitigation:** EdDSA signatures (Ed25519) over ID tokens; private key never leaves the server process.
 
@@ -170,7 +170,7 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 These invariants are enforced in code and must be verified by auditors:
 
-1. **VSID stability:** same `(did_root, client_id)` → same VSID (the salt is a single deployment-wide value derived from `MASTER_KEY`, not a per-call input); different `client_id` → different VSID.
+1. **VSID stability:** same `(did_root, client_id)` → same VSID (the VSID secret is a single deployment-wide value, stored encrypted, not a per-call input); different `client_id` → different VSID.
    - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
    - *Verify:* `vsid_is_stable` and `vsid_non_correlable_across_clients` tests in the same file.
 2. **VSID isolation:** VSID must be derived from an identity DID only, never from an account DID, an alias, a display name or a username ([ADR-002](./decisions/002-accounts-and-identities.md)).
@@ -196,10 +196,11 @@ Startup: BRIGID_MASTER_KEY (env var)  OR  BRIGID_MASTER_KEY_FILE (Docker/Swarm/K
          ↓
          loader validates 64-char ASCII hex, decodes to 32 bytes
          ↓
-         HKDF derives per-context keys (per-account storage keys, the key
-         that encrypts stored OIDC signing seeds, the VSID salt)
+         HKDF derives per-context keys (per-account storage keys, the keys
+         that encrypt the stored OIDC signing seeds and the VSID secret)
          ↓
-         OIDC signing keys are read from the database and decrypted
+         OIDC signing keys and the VSID secret are read from the database
+         and decrypted
          ↓
 Runtime: keys held in process memory only
          ↓

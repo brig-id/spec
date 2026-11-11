@@ -27,14 +27,19 @@ preventing cross-RP identity correlation.
 
 ### Formula
 
-The `salt` is **not** per-user: it's a single value derived once per
-deployment from `MASTER_KEY`, then reused across every user's VSID.
+The keying material is the **VSID secret**: one value per deployment, the same
+for every identity. It is 32 random bytes generated when the database is
+created and stored in it, encrypted with a key derived from `MASTER_KEY`
+([ADR-006](./decisions/006-vsid-secret.md)).
+
+A database created before the secret was stored keeps the value it used until
+then, `HKDF-SHA3-256(ikm = MASTER_KEY, info = "brigid-vsid-salt")[..32]`,
+recorded as its secret at the first start or the first `rotate-key` of the
+upgraded server: its VSIDs do not change.
 
 ```
-salt = HKDF-SHA3-256(ikm = MASTER_KEY, info = "brigid-vsid-salt")[..32]
-
 VSID = HKDF-SHA3-256(
-    ikm  = salt,                          // deployment-wide, from MASTER_KEY above
+    ikm  = vsid_secret,                   // deployment-wide, stored encrypted
     salt = none,                          // HKDF's own salt param is unused (zero-padded)
     info = "brigid-vsid-v1" ||
            u32_be(len(did_root)) || did_root ||
@@ -49,8 +54,8 @@ IDs.
 
 ### Invariants
 
-1. Same `(did_root, client_id)` → same VSID (deterministic; `salt` is
-   constant per deployment, not a per-call input).
+1. Same `(did_root, client_id)` → same VSID (deterministic; the VSID secret
+   is constant per deployment, not a per-call input).
 2. Different `client_id` → different VSID (unlinkable across RPs).
 3. VSID must be derived from an **identity DID** only, never from an account DID, an
    alias, a display name or a username (see [ADR-002](./decisions/002-accounts-and-identities.md)).
@@ -60,12 +65,12 @@ IDs.
    the account DID; [ADR-005](./decisions/005-account-sessions-and-rp-tokens.md) replaces
    that token with a server-side session and is not implemented yet.
 4. VSID must **never** be derived from a username directly.
-5. Rotating `MASTER_KEY` changes `salt`, and therefore every user's VSID —
-   see the rotation runbook in [`operations.md`](./operations.md).
-   [ADR-006](./decisions/006-vsid-secret.md) ends this coupling (a stored secret that a
-   rotation re-encrypts); it is not implemented yet.
+5. Rotating `MASTER_KEY` re-encrypts the VSID secret and changes no VSID —
+   see the rotation runbook in [`operations.md`](./operations.md). The VSID
+   still depends on the server's domain, through the identity DID.
 
-*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
+*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`, `derive_vsid_salt()` (upgrade path only);
+[`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `vsid_secret()`
 
 ---
 
