@@ -10,7 +10,9 @@ the decision made, and the consequences.
 | ADR | Title | Status |
 |---|---|---|
 | [001](001-ring-eddsa-decoding-key-format.md) | `jsonwebtoken` + ring: EdDSA DecodingKey expects raw 32-byte public key | Accepted |
-| [002](002-accounts-and-identities.md) | Accounts and identities | Proposed |
+| [002](002-accounts-and-identities.md) | Accounts and identities | Accepted |
+| [003](003-usernames-and-quick-signup.md) | Usernames and passkey-only quick signup | Proposed |
+| [004](004-account-recovery.md) | Account recovery when every passkey is lost | Proposed |
 
 ## Format
 

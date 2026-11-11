@@ -115,6 +115,15 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the in-memory cache is always bounded, and the persistent table is pruned on each logout (`DELETE FROM jti_blacklist WHERE exp <= ?`).
 - *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()` (in-memory layer); [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-store/src/store.rs) — `blacklist_jti` / `is_jti_blacklisted` (durable layer); [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/routes/auth.rs).
 
+### 4.4b Session lifetime
+- **Threat:** a token outlives the account it was issued for, or an idle
+  session stays usable.
+- **Mitigation:** tokens live one hour. `GET /auth/session` answers `401`
+  once the token is expired, revoked, or its account no longer exists, so the
+  client signs out cleanly. `POST /auth/session/refresh` swaps a valid token
+  for a fresh one and blacklists the old `jti` (durable first, as in logout):
+  an active session slides, an idle one expires.
+
 ### 4.5 Storage (zero-trust)
 - **Mitigation:** `brigid-store` encrypts every sensitive field with AES-256-GCM + unique nonce before `INSERT`.
 - **Mitigation:** `MASTER_KEY` is never written to disk; loaded from env var or Docker secret.
@@ -132,21 +141,21 @@ brig·id is a self-hosted identity provider (IdP) offering:
   in [`server-leaf/src/lib.rs`](https://github.com/brig-id/server-leaf/blob/main/src/lib.rs)'s
   `apply_ui_fallback()`, genuinely last in the middleware stack. The two
   copies have since diverged — treat `server-leaf`'s as authoritative.
-- **Known deviation (tracked, not yet fixed):** the effective (`server-leaf`)
-  policy's `script-src`/`style-src` include `'unsafe-inline'` rather than the
-  nonce-based policy this section originally described. The UI moved from a
-  server-rendered Leptos app (which could inject a per-request nonce into its
-  own hydration script) to `brig-id/app`'s Qwik static (SSG) build, which
-  emits inline `<script>`/`<style>` content that a nonce can't reach at
-  request time — there is no per-request rendering step left to inject one
-  into. `style-src`/`font-src` also allow the third-party origin
-  `https://fonts.bunny.net`, the external font host `app` loads from — not
-  documented anywhere else in this file. The real fix (a build-time SHA-256
-  hash allowlist derived from the static build output) is not yet
-  implemented; see
-  [`brig-id/core#20`](https://github.com/brig-id/core/issues/20) and
-  [`brig-id/app#3`](https://github.com/brig-id/app/issues/3).
-  Auditors should treat this as an open finding.
+- **Inline scripts and styles by hash:** the Qwik static (SSG) build emits
+  inline `<script>`/`<style>` content (its resumability bootstrap), and with
+  no per-request rendering step a nonce can't reach it. Instead `app`'s build
+  writes `dist/csp-hashes.json`, the `'sha256-…'` source of every inline block,
+  and `server-leaf` puts exactly those in `script-src`/`style-src` of UI
+  responses ([`brig-id/app#3`](https://github.com/brig-id/app/issues/3),
+  [`brig-id/core#20`](https://github.com/brig-id/core/issues/20)). Only
+  well-formed hash sources are copied from the manifest. The hashes change from
+  one build to the next, so the manifest ships inside each `dist/`.
+- **Residual deviation:** a UI build without the manifest falls back to
+  `'unsafe-inline'` (logged as a warning at startup). `style-src`/`font-src`
+  allow the third-party font host `https://fonts.bunny.net`; `img-src` and
+  `connect-src` allow Unsplash (the login page's background photo).
+- *Verify:* `server-leaf` unit tests `hashes_replace_unsafe_inline` and
+  `without_a_manifest_falls_back_to_unsafe_inline` (`src/lib.rs`).
 
 ### 4.7 Cross-origin requests (CORS)
 - **Mitigation:** explicit origin allowlist in configuration; no `Access-Control-Allow-Origin: *`.
