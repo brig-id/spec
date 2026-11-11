@@ -89,11 +89,14 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **HSTS** enforced via `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
 
 ### 4.2 Authentication endpoint (`/auth/*`)
-- **Mitigation:** rate limiting — 20 req/min per client IP via `tower-governor`
-  (burst of 5), on `/auth/*` and `/account/*`. Behind a reverse proxy the
-  client IP is read from `X-Forwarded-For`, which requires
-  `security.trust_forwarded_for = true`; without it every request carries the
-  proxy's address and all clients share a single bucket.
+- **Mitigation:** rate limiting per client IP via `tower-governor`, in two
+  separate quotas: the WebAuthn ceremonies (register, login, add-passkey
+  finish), open to anyone, 20 req/min in bursts of 5; the routes that need a
+  session (`/auth/session*`, `/auth/passkeys*`, `/account/*`), 60 req/min in
+  bursts of 30. Behind a reverse proxy the client IP is read from
+  `X-Forwarded-For`, which requires `security.trust_forwarded_for = true`;
+  without it every request carries the proxy's address and all clients share
+  the same quotas.
 - **Mitigation:** WebAuthn RP ID strict (no wildcard); signature counter verified on every login.
 - **Mitigation:** challenges are single-use and expire (TTL enforced in `brigid-webauthn`).
 
