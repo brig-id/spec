@@ -1,6 +1,6 @@
 # ADR-002 — Accounts and identities
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -78,6 +78,16 @@ gets a stable VSID at each RP. The formula itself does not change; its input doe
 - The flow by which an RP token is requested for a chosen identity (identity selection
   after account sign-in) is not specified here; it belongs with the app work (app#11).
 - Rotating `MASTER_KEY` still changes every VSID, as before.
+
+## Implementation
+
+- `core` (brig-id/core#72): table `identities`, store, validation, identity DID,
+  `/account/identities` (CRUD) and `/account/identity-templates`; starter identities
+  (Public, Personal, Work) created at registration and, for older accounts, at the
+  next sign-in.
+- `app` (brig-id/app#32): Identities page, icon library.
+- Still open: an RP token for a chosen identity (identity selection), and identity
+  passkeys (nullable `identity_id` on credentials).
 
 ## References
 

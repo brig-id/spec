@@ -118,6 +118,15 @@ Client                          brigid-api                      brigid-store
   │◀── 200 { id_token } ───────────│                               │
 ```
 
+### Username-less login (discoverable credentials)
+
+`POST /auth/login/begin` without `username` starts a discoverable
+(conditional-UI) challenge with an empty `allowCredentials`. At finish, the
+user is taken from the assertion's `userHandle` (the account id bound at
+registration) and the assertion is verified against **that user's passkeys
+only**: the handle is a claim until the signature checks. An unknown handle
+answers `401`.
+
 ### Security checks (authentication)
 - Challenge must be single-use (deleted after verification).
 - Signature counter must be strictly greater than stored value (counter replay detection).
@@ -198,6 +207,15 @@ entries are evicted on access.
 
 *Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`;
 [`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/645f8dbe2223e43fdce39bfaf00868f630c4e47f/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` extractor (Path B).
+
+---
+
+### Session check and refresh
+
+| Endpoint | Effect |
+|---|---|
+| `GET /auth/session?user_id=` | `200 { user_id, expires_at }`, or `401` when the token is expired, revoked, or its account is gone |
+| `POST /auth/session/refresh?user_id=` | New token (same `aud`, new `exp`, new `jti`); the old `jti` is blacklisted |
 
 ---
 
