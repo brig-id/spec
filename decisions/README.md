@@ -13,6 +13,8 @@ the decision made, and the consequences.
 | [002](002-accounts-and-identities.md) | Accounts and identities | Accepted |
 | [003](003-usernames-and-quick-signup.md) | Usernames and passkey-only quick signup | Proposed |
 | [004](004-account-recovery.md) | Account recovery when every passkey is lost | Proposed |
+| [005](005-account-sessions-and-rp-tokens.md) | Account sessions and relying-party tokens are separate things | Accepted |
+| [006](006-vsid-secret.md) | The VSID secret is stored, not derived from the master key | Accepted |
 
 ## Format
 

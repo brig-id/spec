@@ -57,11 +57,13 @@ IDs.
    *Implementation status:* tokens issued for an identity
    (`POST /account/identities/{id}/token`) follow this rule. The account session token
    issued by `/auth/login/finish` and `/auth/session/refresh` still derives its `sub` from
-   the account DID; separating account sessions from relying-party tokens is the open item
-   of ADR-002.
+   the account DID; [ADR-005](./decisions/005-account-sessions-and-rp-tokens.md) replaces
+   that token with a server-side session and is not implemented yet.
 4. VSID must **never** be derived from a username directly.
 5. Rotating `MASTER_KEY` changes `salt`, and therefore every user's VSID —
    see the rotation runbook in [`operations.md`](./operations.md).
+   [ADR-006](./decisions/006-vsid-secret.md) ends this coupling (a stored secret that a
+   rotation re-encrypts); it is not implemented yet.
 
 *Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
 
