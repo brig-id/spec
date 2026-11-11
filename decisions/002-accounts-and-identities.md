@@ -35,7 +35,7 @@ DID) is the same for both.
 | `account_id` | the owning account (`users.id`) |
 | `did` | `did:web:<host>:i:<id>`: built from `id`, never from a name, so renaming changes nothing |
 | `name` | display name, required, editable, encrypted like `username` |
-| `logo` | required, a typed reference: `icon:<key>` from the predefined library (allow-listed by the server); `upload:<id>` is reserved for later |
+| `logo` | required, a typed reference: `icon:<style>:<name>` from the predefined library, which lives in the app (the server checks the shape of the reference, not its presence in the library); `upload:<id>` is reserved for later |
 | `description` | optional free text, encrypted |
 | `created_at`, `updated_at` | |
 
@@ -70,9 +70,11 @@ gets a stable VSID at each RP. The formula itself does not change; its input doe
 
 - `protocol.md` §2 invariant 3 and `security-model.md` §6 invariant 2 are rewritten: the VSID
   input is an identity DID.
-- Existing users are accounts. A migration creates one default identity per account.
-  **Their VSIDs change**, because the input changes: acceptable before 1.0 and while no RP
-  depends on them, to be re-checked before any production RP is registered.
+- Existing users are accounts. They get the starter identities (Public, Personal, Work)
+  at their next sign-in, like a new account at registration. For a token issued to an
+  identity, **the VSID differs from the account's former one**, because the input changes:
+  acceptable before 1.0 and while no RP depends on them, to be re-checked before any
+  production RP is registered.
 - The token claim `alias_type` carries no meaning once only identity tokens exist; to be
   removed with the core change.
 - The flow by which an RP token is requested for a chosen identity (identity selection
@@ -86,8 +88,12 @@ gets a stable VSID at each RP. The formula itself does not change; its input doe
   (Public, Personal, Work) created at registration and, for older accounts, at the
   next sign-in.
 - `app` (brig-id/app#32): Identities page, icon library.
-- Still open: an RP token for a chosen identity (identity selection), and identity
-  passkeys (nullable `identity_id` on credentials).
+- `core`: `POST /account/identities/{id}/token` issues an ID token whose `sub` is the VSID
+  of that identity.
+- Still open: the flow by which a relying party asks for that token (client registration,
+  redirect, identity selection); the account session, which is still an ID token derived
+  from the account DID (`/auth/login/finish`); and identity passkeys (nullable
+  `identity_id` on credentials).
 
 ## References
 
