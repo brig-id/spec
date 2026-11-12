@@ -14,8 +14,8 @@
 | Key derivation | HKDF | 256-bit output | RFC 5869 |
 | Hash function (HKDF + general) | SHA3-256 | 256-bit digest | FIPS 202 |
 | Classical signatures (OIDC) | Ed25519 | 256-bit private key | RFC 8032 |
-| PQC KEM | ML-KEM-768 + X25519 (hybrid) | 1184 + 32 = 1216-byte combined public key | FIPS 203 |
-| PQC signatures | ML-DSA-65 + Ed25519 (hybrid) | 1952 + 32 = 1984-byte combined public key | FIPS 204 |
+| PQC KEM | X-Wing: ML-KEM-768 + X25519 | 1216-byte public key, 32-byte seed | FIPS 203, draft-connolly-cfrg-xwing-kem |
+| PQC signatures | Composite ML-DSA-65 + Ed25519 (SHA-512 pre-hash) | 1984-byte public key, 3373-byte signature | FIPS 204, draft-ietf-lamps-pq-composite-sigs |
 
 ---
 
