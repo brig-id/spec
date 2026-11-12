@@ -101,31 +101,28 @@ brig·id is a self-hosted identity provider (IdP) offering:
 - **Mitigation:** challenges are single-use and expire (TTL enforced in `brigid-webauthn`).
 
 ### 4.3 Token issuance
-- **Mitigation:** `sub` claim = VSID (derived from `(did_root, client_id)` and a deployment-wide secret stored encrypted in the database) — stable and opaque per RP.
-- **Mitigation:** every issued ID Token carries a unique `jti` (UUID v4), bounded lifetime via `exp`, and is rejected once blacklisted by logout (see 4.4). The `JtiStore` evicts expired entries so it is always bounded.
-- **Mitigation:** EdDSA signatures (Ed25519) over ID tokens; private key never leaves the server process.
+- **Today:** none. No endpoint issues an ID token, so none can be minted for a
+  caller-chosen `client_id` ([ADR-005](decisions/005-account-sessions-and-rp-tokens.md) §3).
+- **With the relying-party flow (ADR-005 §2):** registered clients and exact redirect URIs,
+  Authorization Code + PKCE (`S256`), `state` and `nonce`; `sub` = the VSID of the identity
+  the user chose (ADR-007), `exp` five minutes, unique `jti`, EdDSA signature with stored,
+  rotatable keys.
 
-### 4.4 Session termination (logout)
-- **Endpoint:** `POST /auth/logout` — requires `Authorization: Bearer <token>`.
-- **Mitigation:** logout is a **two-layer** revocation. The token's `jti` is
-  first written to the SQLite `jti_blacklist` table in `brigid-store` (the
-  durable layer, survives restarts), then inserted into
-  `brigid-oidc::JtiStore::blacklist()` (the in-process fast-path cache).
-  Subsequent requests are rejected by the `AuthenticatedClaims` extractor,
-  which consults **both** layers before any handler runs — so a logged-out
-  token remains revoked across service restarts even if the in-memory
-  cache has been wiped.
-- **Mitigation:** blacklisted entries expire automatically at the token's `exp` timestamp — the in-memory cache is always bounded, and the persistent table is pruned on each logout (`DELETE FROM jti_blacklist WHERE exp <= ?`).
-- *Reference:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — `blacklist()` / `is_blacklisted()` (in-memory layer); [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `blacklist_jti` / `is_jti_blacklisted` (durable layer); [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/routes/auth.rs).
-
-### 4.4b Session lifetime
-- **Threat:** a token outlives the account it was issued for, or an idle
-  session stays usable.
-- **Mitigation:** tokens live one hour. `GET /auth/session` answers `401`
-  once the token is expired, revoked, or its account no longer exists, so the
-  client signs out cleanly. `POST /auth/session/refresh` swaps a valid token
-  for a fresh one and blacklists the old `jti` (durable first, as in logout):
-  an active session slides, an idle one expires.
+### 4.4 Account sessions and sign-out
+- **Threat:** a script on the page steals the session and uses it elsewhere, or keeps it
+  alive indefinitely; another site makes the browser act on the account.
+- **Mitigation:** the session is a server-side session behind a 256-bit random token in an
+  `__Host-` cookie, `HttpOnly` (scripts can't read it), `Secure`, `SameSite=Strict`. Only a
+  SHA3-256 hash of the token is stored: a database copy gives no usable session.
+- **Mitigation:** idle timeout (1 h, extended by use) and absolute lifetime (12 h, never
+  extended): an XSS can act while the page is open, but can't take the session away or keep
+  it alive past the lifetime.
+- **Mitigation:** every request that changes something must carry this server's `Origin`
+  (in addition to `SameSite=Strict`); account endpoints take the account from the session,
+  never from a parameter, so no request can name another account.
+- **Mitigation:** sign-out deletes the session server-side; the cookie is cleared too.
+- *Verify:* core integration test `cookie_session_check_sign_out_and_same_origin`; store
+  test `sessions_expire_idle_and_absolute_and_end_on_sign_out`.
 
 ### 4.5 Storage (zero-trust)
 - **Mitigation:** `brigid-store` encrypts every sensitive field with AES-256-GCM + unique nonce before `INSERT`.
@@ -176,15 +173,15 @@ These invariants are enforced in code and must be verified by auditors:
 2. **VSID isolation:** VSID must be derived from an identity DID only, never from an account DID, an alias, a display name or a username ([ADR-002](./decisions/002-accounts-and-identities.md)).
    - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
    - *Verify:* `vsid_never_derived_from_alias` test asserts `compute_vsid` rejects non-`did:web:` inputs with an error.
-3. **Zero raw secrets in storage:** every *sensitive* field written by `brigid-store` (credential bodies, signing-key seeds, user-supplied identifiers, etc.) MUST be encrypted with AES-256-GCM via `brigid-crypto` before the `INSERT` reaches SQLite. Non-secret *operational metadata* — table primary keys, foreign keys, `expires_at` timestamps, schema-migration markers, and the `jti_blacklist` opaque token-ID column — may be stored in plaintext so the database can be queried and pruned. The `jti_blacklist` token ID is intentionally treated as operational metadata rather than session-bound state: the JTI is a random UUID v4 with no link to the user, the credential, or the session payload (the OIDC session itself is rendered unusable by the same row's existence, which is the only purpose of the table). What MUST never appear in plaintext is any value that would reveal a credential, a private key, a user-supplied identifier, or the contents of an active session.
+3. **Zero raw secrets in storage:** every *sensitive* field written by `brigid-store` (credential bodies, signing-key seeds, user-supplied identifiers, etc.) MUST be encrypted with AES-256-GCM via `brigid-crypto` before the `INSERT` reaches SQLite. Non-secret *operational metadata* — table primary keys, foreign keys, `expires_at` timestamps, schema-migration markers, and the session table's token **hashes** (SHA3-256 of a 256-bit random token: a hash is not a usable session) — may be stored in plaintext so the database can be queried and pruned. What MUST never appear in plaintext is any value that would reveal a credential, a private key, a user-supplied identifier, or the contents of an active session.
    - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — see the `encrypt_field` / `decrypt_field` helpers and their call sites in every public store function.
    - *Verify:* `dump_contains_no_plaintext` integration test in `brigid-store` — it asserts the secret payloads do not appear in a raw `.dump`, but tolerates plaintext metadata columns by construction.
 4. **No secrets in logs:** `tracing` spans must not capture key material, WebAuthn private keys, or OIDC signing keys.
-5. **JWT replay control:** every accepted token MUST pass through one of the two `brigid-oidc` validation paths.
-   - **Bearer path** (production middleware): `decode_token` verifies the signature, standard claims, and consults `JtiStore::is_blacklisted()`. The token remains usable for repeated requests until `exp` or until logout writes its `jti` to the blacklist.
-   - **Single-use path** (reserved for one-shot consumption): `validate_token` performs the same checks plus an atomic `JtiStore::check_and_insert()`, so a second call with the same `jti` is rejected as a replay.
-   - *Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`; [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — `check_and_insert()`, `is_blacklisted()`.
-   - *Verify:* `replayed_jti_is_rejected` test in `jti.rs` (single-use path) and the logout integration test in `brigid-api` (bearer path).
+5. **No token as an account credential:** brig·id's API authenticates the account by its
+   server-side session cookie only ([ADR-005](./decisions/005-account-sessions-and-rp-tokens.md));
+   it accepts no ID token, so there is nothing to replay against it. ID tokens, once the
+   relying-party flow exists, are for relying parties, single audience, five-minute lifetime.
+   - *Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs) — `AccountSession`, `require_same_origin`.
 6. **Key zeroization:** `OidcSigningKey` inner `SigningKey` (ed25519-dalek) implements `ZeroizeOnDrop`.
 
 ---
