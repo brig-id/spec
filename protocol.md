@@ -64,11 +64,9 @@ IDs.
 2. Different `client_id` → different VSID (unlinkable across RPs).
 3. VSID must be derived from an **identity DID** only, never from an account DID, an
    alias, a display name or a username (see [ADR-002](./decisions/002-accounts-and-identities.md)).
-   *Implementation status:* tokens issued for an identity
-   (`POST /account/identities/{id}/token`) follow this rule. The account session token
-   issued by `/auth/login/finish` and `/auth/session/refresh` still derives its `sub` from
-   the account DID; [ADR-005](./decisions/005-account-sessions-and-rp-tokens.md) replaces
-   that token with a server-side session and is not implemented yet.
+   *Implementation status:* no token is issued today; the account has a server-side session,
+   not a token ([ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)). With
+   [ADR-007](./decisions/007-identifiers.md) the input is the identity's UUID.
 4. VSID must **never** be derived from a username directly.
 5. Rotating `MASTER_KEY` re-encrypts the VSID secret and changes no VSID —
    see the rotation runbook in [`operations.md`](./operations.md). The VSID
@@ -134,10 +132,13 @@ Client                          brigid-api                      brigid-store
   │                                 │ verify assertion signature    │
   │                                 │ verify signature counter ↑    │
   │                                 │ update counter (encrypted)───▶│
-  │                                 │ compute VSID                  │
-  │                                 │ issue OIDC ID Token           │
-  │◀── 200 { id_token } ───────────│                               │
+  │                                 │ open session (hash only) ────▶│
+  │◀── 204, Set-Cookie: __Host-brigid_session=… ──────────────────│
 ```
+
+Signing in opens an **account session** ([ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)
+§1), it issues no token: brig·id's own API never takes an ID token as a credential.
+Signup (`/auth/register/finish`) and recovery (`/auth/recovery/finish`) open one the same way.
 
 ### Username-less login (discoverable credentials)
 
@@ -158,6 +159,11 @@ answers `401`.
 ---
 
 ## 5. OIDC ID Token
+
+> **Status ([ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)):** no endpoint
+> issues an ID token today. Tokens come back with the Authorization Code flow of §2 of that
+> ADR, for an identity chosen by the user, with `sub` = the identity's VSID (ADR-007). The
+> structure below is what `brigid-oidc` issues.
 
 ### Token structure (JWT)
 
@@ -195,50 +201,29 @@ subject, and are therefore safe to publish.
 `brigid-oidc` exposes **two** validation paths with different replay semantics;
 choosing the right one is part of the protocol contract.
 
-#### Path A — `validate_token` (single-use consumption)
-
-Used when a token is meant to be consumed exactly once (e.g. a one-shot bearer
-hand-off, or any future flow where the relying party should not replay a
-previously seen token):
-
-1. Verify EdDSA signature using the server's `OidcSigningKey`.
-2. Check `exp` > now (no clock leeway).
-3. Check `iss` == expected issuer.
-4. Check `aud` == expected `client_id`.
-5. Atomically check `jti` not in `JtiStore` **and** insert it with TTL = `exp`.
-   A subsequent call with the same `jti` is rejected as a replay.
-
-#### Path B — `decode_token` (bearer-style, reusable until `exp` or logout)
-
-Used by the `AuthenticatedClaims` extractor in `brigid-api` middleware to gate
-authenticated routes (e.g. `POST /auth/logout`). A bearer token must remain
-valid for multiple successive requests until it expires or is revoked, so this
-path does **not** insert into `JtiStore`:
-
-1. Verify EdDSA signature.
-2. Check `exp`, `iss`, `aud` as in Path A (no clock leeway).
-3. Check `jti` is **not** in `JtiStore::is_blacklisted()` (revocation check).
-   Logout writes the `jti` into the blacklist with TTL = `exp`, so any further
-   bearer use after logout is rejected.
-
-ID Tokens issued at `/auth/login/finish` are returned to the client as bearer
-credentials and are validated on every subsequent request via Path B. There is
-currently **no** production endpoint that calls Path A; `validate_token` is
-provided for future flows that need single-use semantics. The shared `JtiStore`
-remains bounded because both paths key on `jti` with `TTL = exp` and expired
-entries are evicted on access.
-
-*Reference:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()`, `decode_token()`;
-[`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` extractor (Path B).
+`brigid-oidc` still has `validate_token` / `decode_token` and a `JtiStore`, from when the
+account session was a bearer ID token. **Nothing in the API calls them since ADR-005:**
+brig·id's API takes no ID token as a credential. A relying party validates the tokens it
+receives (signature with the JWKS, `iss`, `aud`, `exp`, `nonce`) with its own OIDC library.
+Removing the unused validation code from `brigid-oidc` is a follow-up.
 
 ---
 
-### Session check and refresh
+### Account session (ADR-005 §1)
+
+| Property | Value |
+|---|---|
+| Cookie | `__Host-brigid_session=<256 random bits, base64url>; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=<lifetime>` (over plain-HTTP development: `brigid_session`, without `Secure`) |
+| Stored | SHA3-256 of the token, account id, idle deadline, absolute end (table `sessions`) |
+| Idle timeout | 1 h (`security.session_ttl_seconds`), pushed back by every request, never past the end |
+| Absolute lifetime | 12 h after the passkey ceremony (`security.session_lifetime_seconds`), never extended |
+| Account endpoints | take the account from the session; no endpoint accepts a `user_id` |
+| Cross-site requests | any request but GET/HEAD/OPTIONS must carry this server's `Origin` (403 otherwise) |
 
 | Endpoint | Effect |
 |---|---|
-| `GET /auth/session?user_id=` | `200 { user_id, expires_at }`, or `401` when the token is expired, revoked, or its account is gone |
-| `POST /auth/session/refresh?user_id=` | New token (same `aud`, new `exp`, new `jti`); the old `jti` is blacklisted |
+| `GET /auth/session` | `200 { idle_expires_at, expires_at }`, or `401` when there is no live session or its account is gone |
+| `POST /auth/logout` | deletes the session, clears the cookie (`204`) |
 
 ---
 
@@ -246,19 +231,9 @@ entries are evicted on access.
 
 ### `GET /.well-known/openid-configuration`
 
-Limited OIDC Discovery document (non-standard profile). brig·id uses WebAuthn
-instead of the standard OAuth 2.0 Authorization Code flow. Standard OIDC fields
-that do not apply to the WebAuthn flow are omitted from the response.
-
-| Field | Value | Notes |
-|---|---|---|
-| `issuer` | `https://{domain}` | |
-| `jwks_uri` | `https://{domain}/.well-known/jwks.json` | |
-| `response_types_supported` | `["id_token"]` | |
-| `subject_types_supported` | `["pairwise"]` | VSID is pairwise — different per relying party |
-| `id_token_signing_alg_values_supported` | `["EdDSA"]` | |
-| `authorization_endpoint` | *omitted* | Not applicable — use `POST /auth/login/begin` |
-| `token_endpoint` | *omitted* | Not applicable — use `POST /auth/login/finish` |
+**Not served** until the relying-party flow of [ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)
+§2 (Authorization Code + PKCE, registered clients) exists: a discovery document that no
+client can use is worse than none (§3). The JWKS and the DID document stay.
 
 ### `GET /.well-known/jwks.json`
 
@@ -298,34 +273,10 @@ Exposes the server's DID Web document, enabling DID-based identity resolution.
 
 ## 8. Logout Flow
 
-```
-Client                  brigid-api          brigid-store          JtiStore (in-memory)
-  │                         │                  (sqlite)                  │
-  │── POST /auth/logout ──▶│                       │                     │
-  │   Authorization:       │                       │                     │
-  │   Bearer <jwt>         │ decode + verify token │                     │
-  │                        │ blacklist_jti(jti,exp)│                     │
-  │                        │───────── INSERT ────▶│ (durable, survives  │
-  │                        │                       │  restart)           │
-  │                        │ blacklist(jti, exp) ────────────────────▶│ TTL = exp
-  │◄── 200 OK ────────────│                       │                     │
-  │                        │                       │                     │
-  │── (any request with same token) ▶│            │                     │
-  │                        │ AuthenticatedClaims:  │                     │
-  │                        │  ① in-memory check ──────────────────────▶│
-  │                        │  ② if not cached,     │                     │
-  │                        │     SQL lookup ─────▶│ jti_blacklist row?  │
-  │◄── 401 Unauthorized ──│                       │                     │
-```
+`POST /auth/logout` (same-origin, with the session cookie) deletes the session row and
+answers `204` with a `Set-Cookie` that removes the cookie. The session cannot be revived:
+its token is unknown from then on, across restarts too. There is no token to revoke, so no
+JTI blacklist.
 
-### Security properties
-
-- The token is validated fully (signature, expiry, issuer, audience) before blacklisting.
-- **Two-tier revocation store** — every logout writes to both:
-  1. The durable SQLite `jti_blacklist` table in `brigid-store` (written **first**, so a crash between the two writes still revokes the token).
-  2. The in-memory `JtiStore` cache in `brigid-oidc` (written second, for hot-path lookups without an SQL round-trip).
-- `AuthenticatedClaims` consults **both** stores on every authenticated request: a process restart that drops the in-memory cache cannot resurrect a revoked token because the SQL row is authoritative.
-- Both stores expire entries at the token's `exp` (TTL in memory, `WHERE expires_at > now` in SQL), so neither grows unbounded.
-- `POST /auth/logout` is protected by the `AuthenticatedClaims` extractor: malformed or expired tokens are rejected before the handler runs.
-
-*Reference:* [`brigid-api/src/routes/auth.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/routes/auth.rs), [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs), [`brigid-store` JTI blacklist](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/lib.rs) — see also [`security-model.md` §4.4](./security-model.md#44-session-termination-logout) and [`audit-checklist.md` §2.2](./audit-checklist.md).
+*Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs),
+`EncryptedStore::{create_session, use_session, delete_session}`.
