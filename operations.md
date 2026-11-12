@@ -231,16 +231,12 @@ The `kid` of a key is its RFC 7638 JWK thumbprint.
    encrypted blob (`webauthn_credentials.data`), so a credential cannot be selected by its
    ID in SQL; an admin path is to be implemented.
 
-### Token replay attack detected
+### Suspected session theft
 
-If the `JtiStore` reports a replay:
-- Log only minimal non-PII fields: `jti`, `kid`, `aud`, `iss`, timestamps, and
-  a truncated HMAC of `sub` (never the raw `sub` value). **Never log the raw JWT
-  string or the full claims set** — `sub` is a VSID that functions as a stable
-  pseudonymous identifier and must be treated as PII.
-- The token is already rejected — no further action needed for that request.
-- Investigate the source IP for credential compromise.
-- Consider revoking the affected `client_id` if the RP is compromised.
+Sessions live in an `HttpOnly` cookie and the server keeps only token hashes. To end every
+session of an account (for instance after a lost device), delete its rows:
+`DELETE FROM sessions WHERE account_id = '<uuid>';`. Each session also ends by itself after
+one hour unused, and twelve hours after sign-in in any case.
 
 ---
 

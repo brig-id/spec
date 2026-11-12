@@ -39,9 +39,9 @@ This audit covers:
 ### 2.2 Token forgery
 - [ ] Can an attacker forge an ID token without the server's Ed25519 private key?
   - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
-- [ ] Can an attacker replay a valid ID token?
-  - *Check (single-use path):* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()` calls `JtiStore::check_and_insert()` so a second presentation of the same `jti` is rejected.
-  - *Check (bearer path):* [`brigid-api/src/middleware.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/middleware.rs) — `AuthenticatedClaims` calls `decode_token()`; bearer tokens are reusable until `exp` or logout-driven blacklist entry, and the auditor must confirm `decode_token` does NOT insert into `JtiStore` (otherwise legitimate repeated requests would be locked out).
+- [ ] Can a stolen or replayed token open an account? (It should not: the API takes no ID
+      token as a credential, only the session cookie, ADR-005.)
+  - *Check:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs) — `AccountSession` reads only the session cookie.
 - [ ] Does any ID-token claim expose a username, alias, raw DID, or other
       stable cross-RP user identifier?
   - *Check `sub`:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `Claims::sub` must equal `vsid.to_string()`.
@@ -53,10 +53,12 @@ This audit covers:
     DID anywhere in the token defeats the pairwise-`sub` privacy property.
     `iss` and `server` are issuer-side and therefore safe; everything else
     must be either opaque (`sub` = VSID) or random (`jti` = UUID v4).
-- [ ] Is a logged-out token (via `POST /auth/logout`) rejected on subsequent requests?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — `JtiStore::is_blacklisted()` checked by `AuthenticatedClaims` extractor
-- [ ] Is the JTI blacklist bounded (no unbounded growth)?
-  - *Check:* [`brigid-oidc/src/jti.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/jti.rs) — entries expire at token `exp`
+- [ ] Is a signed-out session rejected afterwards, also after a restart?
+  - *Check:* core integration test `cookie_session_check_sign_out_and_same_origin`; the
+    session row is deleted at sign-out.
+- [ ] Do sessions end after 1 h unused and 12 h in any case?
+  - *Check:* `EncryptedStore::use_session` (`brigid-store/src/store.rs`) and the store test
+    `sessions_expire_idle_and_absolute_and_end_on_sign_out`.
 
 ### 2.3 Identity correlation
 - [ ] Can two relying parties correlate users via the `sub` claim?
@@ -147,14 +149,7 @@ This audit covers:
 
 ### OIDC
 - [ ] `exp` is always set and checked
-- [ ] `jti` is always generated (UUID v4) and revocation survives a service
-      restart: `POST /auth/logout` writes the JTI to the SQLite
-      `jti_blacklist` table in `brigid-store` (the durable layer) and then
-      to `brigid-oidc::JtiStore` (the in-process fast-path cache).
-      `AuthenticatedClaims` in `brigid-api` consults both layers on every
-      authenticated request, so a JTI revoked before a restart is still
-      rejected afterwards.
-- [ ] `JtiStore` evicts expired entries (bounded growth)
+- [ ] `jti` is always generated (UUID v4)
 - [ ] `aud` is verified against `expected_client_id`
 
 ### HTTP
@@ -165,8 +160,9 @@ This audit covers:
 - [ ] `X-Content-Type-Options: nosniff` is set
 - [ ] `X-Frame-Options: DENY` is set
 - [ ] `Strict-Transport-Security` is set
-- [ ] `POST /auth/logout` requires a valid `Authorization: Bearer` header
-- [ ] Logged-out tokens are rejected via `AuthenticatedClaims` before reaching handlers
+- [ ] The session cookie is `__Host-`, `HttpOnly`, `Secure`, `SameSite=Strict`
+- [ ] Every non-GET request on `/auth/*` and `/account/*` requires this server's `Origin`
+- [ ] No endpoint takes a `user_id`: the account always comes from the session
 
 ### Deployment (server-leaf)
 - [ ] Binary refuses to start if `BRIGID_MASTER_KEY` (or `BRIGID_MASTER_KEY_FILE`)
