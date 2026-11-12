@@ -218,9 +218,10 @@ Shutdown: keys dropped (zeroized on drop via secrecy/zeroize)
 
 See [`pqc.md`](pqc.md) for the full PQC strategy and migration plan.
 
-Summary: hybrid ML-KEM-768+X25519 (FIPS 203) and ML-DSA-65+Ed25519 (FIPS 204) are available in
-`brigid-crypto`. Current deployment uses classical Ed25519 for OIDC token signing;
-PQC hybrid signatures will be activated in a future phase.
+Summary: `brigid-crypto` provides the X-Wing hybrid KEM (ML-KEM-768 + X25519) and composite
+ML-DSA-65 + Ed25519 signatures, both following their IETF drafts and checked against the
+drafts' test vectors. **Nothing in brig·id uses them yet**: OIDC tokens are signed with
+Ed25519, and no data is encrypted to a KEM key. They are ready for when a use case needs them.
 
 ---
 

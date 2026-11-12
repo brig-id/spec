@@ -31,10 +31,12 @@ are used simultaneously. A break in one does not compromise the other.
 | Public key size | 1184 bytes (ML-KEM-768) + 32 bytes (X25519) |
 | Ciphertext size | 1088 bytes (ML-KEM-768) + 32 bytes (X25519 ephemeral) |
 
-**Hybrid combination:** shared secrets from X25519 and ML-KEM-768 are concatenated
-and fed into HKDF-SHA3-256 to produce the final shared key.
-
-*Reference:* [`src/kem.rs`](https://github.com/brig-id/crypto/blob/main/src/kem.rs)
+**Hybrid combination: X-Wing** ([draft-connolly-cfrg-xwing-kem](https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/),
+RustCrypto `x-wing`): `ss = SHA3-256(ss_ML-KEM || ss_X25519 || ct_X25519 || pk_X25519 || label)`.
+Binding the X25519 ciphertext and public key is what keeps the hybrid IND-CCA secure when
+only one component holds; the earlier `HKDF(ss_mlkem || ss_x25519)` did not (audit finding
+S4). The decapsulation key is a single 32-byte seed. A non-contributory X25519 share is
+refused at decapsulation. *Verify:* `crypto/tests/xwing_kat.rs` (the draft's vectors).
 
 ### 2.2 Signatures — ML-DSA-65 + Ed25519
 
@@ -47,12 +49,20 @@ and fed into HKDF-SHA3-256 to produce the final shared key.
 | Public key size | 1952 bytes (ML-DSA-65) + 32 bytes (Ed25519) |
 | Signature size | 3309 bytes (ML-DSA-65) + 64 bytes (Ed25519) |
 
-**Hybrid combination:** both signatures are produced independently and concatenated.
-Verification requires both to be valid.
+**Hybrid combination: composite ML-DSA** ([draft-ietf-lamps-pq-composite-sigs-19](https://datatracker.ietf.org/doc/draft-ietf-lamps-pq-composite-sigs/),
+id-MLDSA65-Ed25519-SHA512). Both components sign the message representative
 
-*Reference:* [`src/dsa.rs`](https://github.com/brig-id/crypto/blob/main/src/dsa.rs)
+```
+M' = "CompositeAlgorithmSignatures2025" || "COMPSIG-MLDSA65-Ed25519-SHA512"
+     || len(ctx) || ctx || SHA-512(M)
+```
 
----
+ML-DSA-65 with the label as its FIPS 204 context and in hedged (randomized) mode, Ed25519 as
+usual. The prefix and label stop either half from being used as a signature of `M` on its own
+(no stripping), and `ctx` (≤ 255 bytes) binds a signature to its application use. The
+signature is valid only if both halves are. Serialisations: signature `mldsa || ed25519`
+(3373 bytes), public key (1984), private key = the two 32-byte seeds (64). *Verify:*
+`crypto/tests/composite_kat.rs` (the draft's vector, from another implementation).
 
 ## 3. Hybrid Construction Rationale
 
@@ -79,8 +89,8 @@ Using hybrids ensures:
 ## 5. Migration Roadmap
 
 ### Phase A — Available now (brigid-crypto)
-- [x] ML-KEM-768 + X25519 hybrid KEM implemented and tested
-- [x] ML-DSA-65 + Ed25519 hybrid signatures implemented and tested
+- [x] X-Wing (ML-KEM-768 + X25519) hybrid KEM implemented and tested against the draft's vectors
+- [x] Composite ML-DSA-65 + Ed25519 signatures implemented and tested against the draft's vector
 - [x] Fuzz targets for both primitives
 
 ### Phase B — Wire PQC to OIDC signing (planned)
