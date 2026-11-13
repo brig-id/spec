@@ -14,7 +14,7 @@ This audit covers:
 |---|---|---|
 | `brigid-crypto` (`brig-id/crypto`) | 1 | Cryptographic primitives |
 | `brigid-store` | 2 | Zero-trust SQLite storage |
-| `brigid-did` | 2 | The server's own DID document (to be removed: ADR-025) |
+| `brigid-did` | 2 | The server's own DID document (its removal is decided: `protocol.md` §8) |
 | `brigid-identity` | 3 | VSID computation, usernames, recovery codes |
 | `brigid-webauthn` | 4 | Passkey registration and authentication |
 | `brigid-oidc` | 5 | JWT issuance and validation |
@@ -40,7 +40,7 @@ This audit covers:
 - [ ] Can an attacker forge an ID token without the server's Ed25519 private key?
   - *Check:* [`brigid-oidc/src/token.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/token.rs) — `validate_token()` verifies EdDSA signature
 - [ ] Can a stolen or replayed token open an account? (It should not: the API takes no ID
-      token as a credential, only the session cookie, ADR-005.)
+      token as a credential, only the session cookie: `protocol.md` §5.)
   - *Check:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs) — `AccountSession` reads only the session cookie.
 - [ ] Does any ID-token claim expose a username, alias, raw DID, or other
       stable cross-RP user identifier?

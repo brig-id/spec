@@ -1,15 +1,18 @@
 {
   "conventionalCommits.gitmoji": true,
   "conventionalCommits.scopes": [
+    "model",
     "protocol",
+    "security",
+    "pqc",
+    "interface",
+    "editions",
     "operations",
     "audit",
-    "pqc",
-    "security",
-    "decisions",
+    "docs",
     "ci",
     "ai",
     "deps",
-    "docs"
+    "decisions"
   ]
 }

@@ -9,33 +9,38 @@ intended for third-party security auditors and the open-source community.
 
 ## Scope
 
-- `security-model.md` — threat model, attack vectors, mitigations, security assumptions
-- `protocol.md` — WebAuthn flow, OIDC flow, VSID computation, cryptographic parameters
-- `pqc.md` — post-quantum algorithm choices and migration plan
-- `audit-checklist.md` — checklist for third-party auditors
-- `operations.md` — operational procedures (MASTER_KEY rotation, incident response)
+One document per subject. Each is the single description of its subject: there are no
+separate decision records. A choice is written where it applies, with its reason in a
+sentence when the reason is not obvious.
+
+| File | Content |
+| --- | --- |
+| `README.md` | The map, the statuses, the words, and where earlier "ADR" references now point |
+| `model.md` | Accounts, identities, what an application receives, the life of an account, administration, servers |
+| `protocol.md` | Cryptographic parameters, passkey ceremonies, sessions, the sign-in of relying parties, tokens, the recovery code |
+| `security-model.md` | Threats, trust boundaries, attack surfaces, authentication policy, invariants, end-to-end encryption |
+| `pqc.md` | Post-quantum algorithm choices and their use |
+| `interface.md` | The web interface: self-contained, design system, icons, typography, structure |
+| `editions.md` | What v1 is, the three editions, the licence, what is paid |
+| `operations.md` | Keys, rotation, incidents, deployment, releases |
+| `audit-checklist.md` | Checklist for third-party auditors |
+| `audit/` | How the audit is funded; drafts of the requests |
 
 This repository contains **no code**. It is documentation only.
 
 ## Rules
 
 - Write for an external security auditor, not an internal developer.
-- Every security claim must reference the implementation (crate, function, test).
+- **Every section says where it stands** (`**Status:**` built, in review, decided for a
+  step, decided for after v1, open), as defined in `README.md`. A section marked *built*
+  references the implementation (crate, function, test). Nothing may read as built when it
+  is not.
+- When something is decided, change the document of its subject. Do not add a record of the
+  decision next to it: the history of the repository is the record.
 - Never include secrets, private keys, or production configuration examples.
 - All cryptographic parameters must cite their NIST/IETF standard.
 - Keep documents self-contained — do not assume the reader has access to the source code.
-
-## Key documents
-
-| File | Content |
-| --- | --- |
-| `security-model.md` | Threat actors, attack surfaces, mitigations, trust assumptions |
-| `protocol.md` | Step-by-step WebAuthn + OIDC flows, VSID formula, key sizes |
-| `pqc.md` | ML-KEM-768 (FIPS 203), ML-DSA-65 (FIPS 204), hybrid rationale, migration roadmap |
-| `audit-checklist.md` | Critical points, attack vectors to test, contact + CVD process |
-| `operations.md` | MASTER_KEY rotation procedure, incident response playbook |
-| `decisions/` | Architecture decision records (index in `decisions/README.md`) |
-| `audit/applications/` | Drafts of the requests for a funded third-party audit |
+- The order of work is not here: it lives in the organisation's GitHub Project.
 
 ## Commit conventions
 
@@ -54,12 +59,15 @@ Format: `type(scope): <emoji> description`
 
 | Scope | Maps to |
 | --- | --- |
+| `model` | `model.md` |
 | `protocol` | `protocol.md` |
+| `security` | `security-model.md` |
+| `pqc` | `pqc.md` |
+| `interface` | `interface.md` |
+| `editions` | `editions.md` |
 | `operations` | `operations.md` |
 | `audit` | `audit-checklist.md`, `audit/` |
-| `pqc` | `pqc.md` |
-| `security` | `security-model.md` |
-| `decisions` | `decisions/` |
+| `docs` | `README.md`, `AGENTS.md`, changes across several documents |
 | `ci` | `.github/workflows/` |
 
 **Do not use a scope outside this list.** If a new document is added, update this table

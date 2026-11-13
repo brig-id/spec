@@ -216,7 +216,7 @@ The `kid` of a key is its RFC 7638 JWK thumbprint.
 5. Rotate the OIDC signing key (`leaf rotate-oidc-key`, §2): whoever held the master key
    and a copy of the database could decrypt its seed and sign tokens.
 6. The VSID secret is not changed by the rotation, by design
-   ([ADR-006](./decisions/006-vsid-secret.md)): relying parties keep recognising their
+   ([`protocol.md`](./protocol.md) §2): relying parties keep recognising their
    users. Someone holding the leaked key and a database copy can compute VSIDs, which tells
    them nothing they could not already read in that copy.
 7. Invalidate all active OIDC sessions at relying parties.
@@ -276,7 +276,7 @@ status, and latency histograms. Logs are structured JSON (`tracing`).
 ## 6. Releases and the Reference Server
 
 A release of a server is a tag `vX.Y.Z` on `main`, created by CI when the release pull
-request is merged ([ADR-011](decisions/011-releases-and-dependency-flow.md)). The tag builds
+request is merged. The tag builds
 and publishes the container image `ghcr.io/brig-id/leaf:vX.Y.Z`.
 
 The project's own server, `helm.brig.id`, **deploys by pulling**. Every five minutes a timer
@@ -307,3 +307,25 @@ For whoever cuts a release:
 
 Other operators choose their own policy. Following tags automatically suits a small server;
 it is not a recommendation for every deployment.
+
+### How releases and updates are produced
+
+**Status:** decided — step 1. Today a release is three manual edits that must agree (the
+manifest's version, the changelog, the tag), and update pull requests come from Dependabot.
+
+- **Every repository releases by a semver tag `vX.Y.Z` on `main`, created by CI**, never by
+  hand: release-please keeps a release pull request up to date (version, changelog), and
+  merging it creates the tag and the release. A changelog generator alone (git-cliff) was the
+  alternative; it leaves the release itself to script.
+- What publishes (image, binaries) runs in the same workflow as the release: a tag pushed
+  with the default token triggers nothing else.
+- **Renovate opens the update pull requests**, from a preset shared by the organisation, and
+  never merges. The cryptography library and the core are pinned **by tag**; the interface
+  version a server embeds is pinned by tag and commit together, and the server builds it
+  from source at that commit: nothing binary is trusted.
+
+```text
+crypto vX ──▶ core ──▶ core vY ──┐
+                                 ├──▶ server ──▶ server vZ ──▶ image, binaries
+app vW ──────────────────────────┘
+```

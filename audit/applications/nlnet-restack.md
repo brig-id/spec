@@ -1,7 +1,7 @@
 # NLnet proposal — draft
 
 > **Working draft, not a submission.** Call: Restack fund, deadline **2027-01-03, 12:00 CET**
-> (<https://nlnet.nl/propose/>). See [ADR-010](../../decisions/010-third-party-audit-funding.md).
+> (<https://nlnet.nl/propose/>). See [`audit/README.md`](../README.md).
 >
 > **Before sending:**
 >
@@ -16,7 +16,7 @@
 >    2026-11-13.
 > 4. Fill what is between `[brackets]`.
 > 5. Licence: AGPL-3.0-or-later for the servers, the core and the interface, LGPL-3.0-or-later
->    for the cryptography library ([ADR-020](../../decisions/020-licensing-and-pricing.md)).
+>    for the cryptography library ([`editions.md`](../../editions.md) §7).
 > 6. A token is needed to submit: request it by email as the form explains, a few days
 >    ahead.
 
