@@ -88,7 +88,7 @@ that account is the administrator. **Until then, signup is closed.** Reaching th
 the proof of being the operator.
 
 For the day every administrator's passkeys are lost, the same mechanism from the command
-line: `leaf admin invite` prints a one-time link that grants the role to the account that
+line: `seedling admin invite` (the same command in the three servers) prints a one-time link that grants the role to the account that
 redeems it. It needs access to the machine, which is the operator's proof again.
 
 ## Consequences

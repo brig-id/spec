@@ -15,9 +15,8 @@
 > 3. Check each character limit on the live form; the limits below are those read on
 >    2026-11-13.
 > 4. Fill what is between `[brackets]`.
-> 5. The licence question: the answer below says LGPL-3.0-or-later, which is true today.
->    If [ADR-020](../../decisions/020-licensing-and-pricing.md) is decided before sending,
->    use its outcome. It must be a free licence either way.
+> 5. Licence: AGPL-3.0-or-later for the servers, the core and the interface, LGPL-3.0-or-later
+>    for the cryptography library ([ADR-020](../../decisions/020-licensing-and-pricing.md)).
 > 6. A token is needed to submit: request it by email as the form explains, a few days
 >    ahead.
 

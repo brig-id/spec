@@ -101,8 +101,8 @@ the account.
 | --- | --- | --- |
 | A. None | Nothing | Applications that require an address do not work, or ask for it themselves |
 | B. An address the person types on an identity, sent unverified (`email_verified: false`) | A field | Many applications refuse or distrust an unverified address; the same address on two identities links them |
-| C. The same, verified by brig·id (a confirmation message) | The server must send mail: an SMTP account to configure, even on a `leaf` | A dependency and a failure mode for the smallest edition; the server learns a real address |
-| D. A relay address generated per identity and per site, forwarded to a real address | The server receives and forwards mail: a domain's mail records, deliverability, abuse handling | A mail service to operate. Out of reach for a `leaf`; conceivable for a hosted offer |
+| C. The same, verified by brig·id (a confirmation message) | The server must send mail: an SMTP account to configure, even on a `seedling` | A dependency and a failure mode for the smallest edition; the server learns a real address |
+| D. A relay address generated per identity and per site, forwarded to a real address | The server receives and forwards mail: a domain's mail records, deliverability, abuse handling | A mail service to operate. Out of reach for a `seedling`; conceivable for a hosted offer |
 | E. A made-up, undeliverable address derived from the identifier | Nothing | It satisfies a form and breaks every message the application sends. It is a false statement to the site |
 
 **Recommendation:** A for v1 (decided). After v1, **B**, as an attribute like the others,

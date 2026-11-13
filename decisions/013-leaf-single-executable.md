@@ -1,6 +1,7 @@
-# ADR-013 — leaf is a single executable
+# ADR-013 — The smallest edition is a single executable
 
-**Status:** Accepted (2026-11-13)
+**Status:** Accepted (2026-11-13). The edition, `leaf` when this was written, is renamed
+`seedling` ([ADR-019](019-editions.md) §5); the commands below take the new name with it.
 
 ## Context
 

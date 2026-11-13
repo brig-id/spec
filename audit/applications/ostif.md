@@ -20,7 +20,7 @@ website receives a different identifier, so identities cannot be linked.
 - Website: <https://brig.id>
 - Source: <https://github.com/brig-id> — `crypto`, `core`, `app`, `server-leaf`
 - Specification for auditors: <https://github.com/brig-id/spec>
-- Licence: LGPL-3.0-or-later `[or the outcome of ADR-020]`
+- Licence: AGPL-3.0-or-later (the cryptography library: LGPL-3.0-or-later)
 - Languages: Rust (server, about `[N]` lines), TypeScript (interface, Qwik)
 - Maintainer: `[name, contact]`
 
