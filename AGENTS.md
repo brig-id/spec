@@ -34,6 +34,8 @@ This repository contains **no code**. It is documentation only.
 | `pqc.md` | ML-KEM-768 (FIPS 203), ML-DSA-65 (FIPS 204), hybrid rationale, migration roadmap |
 | `audit-checklist.md` | Critical points, attack vectors to test, contact + CVD process |
 | `operations.md` | MASTER_KEY rotation procedure, incident response playbook |
+| `decisions/` | Architecture decision records (index in `decisions/README.md`) |
+| `audit/applications/` | Drafts of the requests for a funded third-party audit |
 
 ## Commit conventions
 
@@ -54,7 +56,7 @@ Format: `type(scope): <emoji> description`
 | --- | --- |
 | `protocol` | `protocol.md` |
 | `operations` | `operations.md` |
-| `audit` | `audit-checklist.md` |
+| `audit` | `audit-checklist.md`, `audit/` |
 | `pqc` | `pqc.md` |
 | `security` | `security-model.md` |
 | `decisions` | `decisions/` |
