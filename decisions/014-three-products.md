@@ -1,7 +1,7 @@
 # ADR-014 — Three products: leaf, grove, forest
 
-**Status:** Accepted (2026-11-13). What each product contains is analysed in
-[ADR-019](019-editions.md) (Proposed).
+**Status:** Accepted (2026-11-13; §4 rewritten the same day after review with the owner).
+What each product contains is analysed in [ADR-019](019-editions.md) (Proposed).
 
 ## Context
 
@@ -39,23 +39,26 @@ closer to what `grove` will be than to the new `leaf`.
 - **`grove`** starts from today's `leaf` deployment: the image, the compose file, the proxy.
 - **`forest`** is designed when a first installation needs it.
 
-### 4. Order
+### 4. What v1 is: three milestones, in this order
 
-1. **v1 is `leaf`**: the single executable, with the relying-party flow
-   ([ADR-005](005-account-sessions-and-rp-tokens.md) §2,
-   [ADR-008](008-oidc-conformance.md)) and the self-contained interface
-   ([ADR-012](012-self-contained-app.md)).
-2. `grove` after v1.
-3. `forest` after `grove`, on demand.
+v1 is not one release. It is reached in three steps, each one usable for what it is for.
+
+| Milestone | It is reached when | What it contains |
+| --- | --- | --- |
+| **1. I use it** | The owner signs in to a real site through the project's own server, every day, with the new interface | The relying-party flow ([ADR-005](005-account-sessions-and-rp-tokens.md) §2, [ADR-008](008-oidc-conformance.md)) released; the self-contained interface ([ADR-012](012-self-contained-app.md)); the demonstration site online; automated releases ([ADR-011](011-releases-and-dependency-flow.md)) |
+| **2. Anyone can install it** | Someone who never spoke to the project installs a server and connects an application to it | `leaf` as one executable ([ADR-013](013-leaf-single-executable.md)); **`grove` available**; administration; what an identity may share with a site, shown and accepted ([ADR-022](022-identity-attributes-and-consent.md)); accessibility checked in CI; the names of the three products settled; installation documentation |
+| **3. It can be audited** | The scope is frozen, specified and tested | Specifications re-read against the code; load tests; **`forest` designed** (an accepted design record and a structured repository, no running code); feature freeze; the audit ([ADR-010](010-third-party-audit-funding.md)) |
+
+So v1 ships two products, `leaf` and `grove`, and the design of the third.
 
 The reference server `helm.brig.id` runs `leaf`'s image until `grove` exists, then becomes a
 `grove`: a public server for many people is what `grove` is for.
 
 ## Consequences
 
-- `server-grove` and `server-forest` stay empty until their turn; their README files
-  describe intent, not features.
-- The public site keeps saying what exists: `leaf` only.
+- `server-grove` is built for milestone 2; `server-forest` holds a design, not code, at
+  milestone 3. Until then their README files describe intent, not features.
+- The public site keeps saying what exists at each milestone, and nothing more.
 - An export/import format between products is needed before `grove` ships
   ([ADR-019](019-editions.md)).
 

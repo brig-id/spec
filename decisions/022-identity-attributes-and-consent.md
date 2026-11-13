@@ -1,7 +1,8 @@
 # ADR-022 — What a site may receive: identity attributes, shown and accepted on the linking page
 
-**Status:** Proposed (2026-11-13). Nothing of this is in v1, where a site receives an
-identifier and nothing else ([ADR-008](008-oidc-conformance.md)).
+**Status:** Proposed (2026-11-13). In scope for milestone 2 of v1
+([ADR-014](014-three-products.md)); until then a site receives an identifier and nothing
+else ([ADR-008](008-oidc-conformance.md)).
 
 ## Context
 
@@ -28,15 +29,26 @@ create an account. An analysis was asked before anything is built.
 | What | Name, icon, description | Values the person enters in order to share them |
 | Seen by | The person, in brig·id | A site, only after consent (§3) |
 | Required | Name and icon | None: an identity can have no attribute at all |
-| Examples | "Work", a briefcase | Given name, family name, username; later, connectors |
+| Examples | "Work", a briefcase | Given name, family name, username |
 
 Attributes are optional, typed, and stored encrypted like the other fields of an identity.
 They belong to one identity: nothing is copied from one identity to another, and the
 account has none.
 
-To confirm: **what a connector is.** This ADR reads it as a link from an identity to an
-account elsewhere that the person chooses to show (for example a handle on another
-service), not as the list of sites the identity signs in to.
+### 1b. "Connector" covers two things, to be named apart
+
+The word has been used for two different links of an identity:
+
+| | Towards a site that signs people in | Towards a service the identity uses |
+| --- | --- | --- |
+| What it is | A site the identity signs in to through brig·id | An outside service (a code forge, a task manager, a video platform…) the identity is connected to, so that brig·id can hand an authorised application what it needs to act there, possibly no more than a token |
+| brig·id is | The provider: the site trusts it | The client: it holds an access the service granted |
+| Exists | With the relying-party flow | Not designed |
+
+Two terms are needed; they are not chosen yet. This ADR uses **site** for the first and
+keeps **connector** for the second. **No connector is part of v1.** Each one will need its
+own analysis: what the server stores, who may obtain a token, and how the person sees and
+withdraws it.
 
 ### 2. How a site asks
 
@@ -93,16 +105,15 @@ the account.
 | D. A relay address generated per identity and per site, forwarded to a real address | The server receives and forwards mail: a domain's mail records, deliverability, abuse handling | A mail service to operate. Out of reach for a `leaf`; conceivable for a hosted offer |
 | E. A made-up, undeliverable address derived from the identifier | Nothing | It satisfies a form and breaks every message the application sends. It is a false statement to the site |
 
-**Recommendation:** A for v1 (decided). Then **B**, as an attribute like the others, shown on
-the linking page with the warning of §4. C only when a server has a reason to send mail
+**Recommendation:** A for v1 (decided). After v1, **B**, as an attribute like the others,
+shown on the linking page with the warning of §4. C only when a server has a reason to send mail
 anyway. D as a possible feature of a hosted offer, with its own ADR. E never.
 
 ### 6. Order
 
-1. v1: the identifier only.
-2. After v1: attributes (given name, family name, username) and the linking page of §3.
-3. Then the e-mail attribute (option B).
-4. Connectors, once §1's reading is confirmed.
+1. Milestone 1 of v1 ([ADR-014](014-three-products.md)): the identifier only.
+2. Milestone 2: attributes (given name, family name, username) and the linking page of §3.
+3. After v1: the e-mail question (§5), and connectors (§1b), each with its own record.
 
 ## Consequences
 
