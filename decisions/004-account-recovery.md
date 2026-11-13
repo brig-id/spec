@@ -44,8 +44,8 @@ in, so it must not become a weaker equivalent of a password.
 - Rotating `MASTER_KEY` must re-encrypt the verifiers (same as other account fields).
 - Identity DIDs and VSIDs are untouched by recovery: the account regains access to the same
   identities.
-- To decide before implementing: whether a server operator may reset an account manually
-  (support channel), which this ADR does not allow.
+- A server operator cannot reset an account: an account without passkey and without recovery
+  code is lost, and is deleted and created again ([ADR-018](018-app-structure.md) §4).
 
 ## References
 

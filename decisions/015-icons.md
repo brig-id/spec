@@ -1,6 +1,6 @@
 # ADR-015 — Icons: Phosphor, embedded, for the interface and for identity logos
 
-**Status:** Proposed (2026-11-13). Recommendation: Phosphor.
+**Status:** Accepted (2026-11-13, review round 2 with the owner).
 
 ## Context
 
@@ -37,7 +37,7 @@ Integration is the same for every candidate: a build step reads the Iconify JSON
 and emits the SVG of the icons actually used. No icon font, no component library, no request
 at run time. Wrapper packages for Qwik exist and are unmaintained; none is needed.
 
-## Recommendation
+## Decision
 
 **Phosphor.**
 
@@ -51,20 +51,18 @@ four times smaller than Tabler. For 45 logos and a few dozen interface icons tha
 and icons are static files that do not rot. If a subject is missing, a Tabler icon can be
 added to the logo library individually (same licence family).
 
-Second choice: **Tabler**, if breadth or upstream activity weighs more than the look shared
-with the site. The site would then switch too.
+## Stored logos: one migration
 
-## Stored logos: no data migration
+New references keep the shape `icon:<style>:<name>` with the set's Iconify prefix:
+`icon:ph:<name>`. The weight is a matter of display, not of data.
 
-New references use the same shape with the set's Iconify prefix: `icon:ph:<name>`. The
-weight is a matter of display, not of data.
+Existing references are **converted once**, by a database migration in `core` that rewrites
+the 45 legacy values (the column is not encrypted). After it, nothing in the code knows
+Font Awesome's names: the identity templates and the validation use the new form, and a
+reference in the old form is refused. The few existing accounts live on the project's own
+server; the migration runs there with the release that carries it.
 
-Existing references are **not rewritten**. The app keeps a permanent table from the 45
-legacy references to their Phosphor equivalent and resolves them at display time; an
-identity's reference is rewritten only when its owner edits the logo. The server accepts
-both forms (it only checks the shape, which does not change), so `core` needs no migration
-and no release is coupled to another.
-
+Equivalents (all present in Phosphor 2.1, regular and duotone):
 Proposed equivalents (all present in Phosphor 2.1, regular and duotone):
 
 | Legacy (`icon:solid:…`) | Phosphor | | Legacy | Phosphor |
@@ -98,9 +96,10 @@ identities that use it.
 
 ## Consequences
 
-- `app`: an icon component over inlined SVG, the legacy table, the picker rebuilt on
-  Phosphor names (the library can grow: nature, sea and travel subjects are well covered).
-- `core`: nothing. `protocol`-level documents keep describing `icon:<style>:<name>`.
+- `core`: the migration, the identity templates and the validation of references.
+- `app`: an icon component over inlined SVG, and the picker rebuilt on Phosphor names (the
+  library can grow: nature, sea and travel subjects are well covered). `app` and `core`
+  change together: one release of the server carries both.
 - Brand logos remain trademarks of their owners whatever the set's licence; the picker keeps
   them few.
 
