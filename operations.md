@@ -270,3 +270,40 @@ status, and latency histograms. Logs are structured JSON (`tracing`).
 | Internal error (database included) | `500` responses (metrics); log line `internal server error` with its `error` field | Any occurrence |
 | Server startup with missing key | Server refuses to start | Always alert |
 | UI served without CSP hashes | Startup warning `no dist/csp-hashes.json` | Any occurrence |
+
+---
+
+## 6. Releases and the Reference Server
+
+A release of a server is a tag `vX.Y.Z` on `main`, created by CI when the release pull
+request is merged ([ADR-011](decisions/011-releases-and-dependency-flow.md)). The tag builds
+and publishes the container image `ghcr.io/brig-id/leaf:vX.Y.Z`.
+
+The project's own server, `helm.brig.id`, **deploys by pulling**. Every five minutes a timer
+on the machine:
+
+1. reads its deployment files (the stack definition and the proxy configuration) from a
+   private repository;
+2. looks up the highest `vX.Y.Z` tag of the public image and pins it by digest;
+3. does nothing if neither the image nor the deployment files changed;
+4. before starting a new image, takes an **online backup of the database** (SQLite's
+   `.backup`, consistent while the server writes) and keeps the last ten: schema migrations
+   are one-way;
+5. deploys. The orchestrator **rolls back by itself** when the new version fails its health
+   check; a version that was rolled back is not tried again until a newer one is published.
+
+No workflow connects to the machine and GitHub holds no credential for it. The master key
+reaches the server as a container secret created from the project's secret store, never from
+the repository.
+
+For whoever cuts a release:
+
+| | |
+|---|---|
+| Publishing a tag deploys it within minutes | The production gate is the merge of the release pull request, not a later step |
+| Undoing a release | Publish a newer version. Deleting a tag does not bring the previous one back, and a migrated database is not migrated back: the backup of step 4 is the way back |
+| A version that does not start | Rolled back automatically; the server stays on the previous version. Fix forward with a new tag |
+| What may be tagged | Only a commit that reached `main` through a pull request |
+
+Other operators choose their own policy. Following tags automatically suits a small server;
+it is not a recommendation for every deployment.
