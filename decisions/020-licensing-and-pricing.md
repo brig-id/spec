@@ -81,9 +81,10 @@ version to Apache-2.0 or MIT after two years.
 - **Contributions under a Developer Certificate of Origin**, nothing to sign: a contributor
   certifies the right to contribute, and contributes under the project's licence. With no
   other licence to grant, no contributor agreement is needed.
-- **The name is registered.** "brig·id" (name and mark) is filed as a trademark before
-  step 2 of v1 ([ADR-014](014-three-products.md)), and a short policy says what others may
-  do with it: a fork or a host may say truthfully that it is based on brig·id or compatible
+- **The name is to be registered.** "brig·id" (name and mark) is to be filed as a trademark
+  before step 2 of v1 ([ADR-014](014-three-products.md)), subject to a clearance search: a
+  first look on 2026-11-13 found earlier marks close to the name, and the filing waits for
+  professional advice. A short policy says what others may do with the name: a fork or a host may say truthfully that it is based on brig·id or compatible
   with it; it may not call itself brig·id or suggest it is the project. A trademark does not
   stop anyone from running the software for free, nor a fork under another name; with the
   AGPL, which makes whoever offers a modified version as a service publish the changes, it
