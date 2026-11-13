@@ -1,11 +1,11 @@
 # Protocol — brig·id
 
 > **Audience:** external security auditors and advanced contributors.
-> This document describes the WebAuthn registration/authentication flows,
-> OIDC ID Token issuance, VSID computation, and cryptographic parameters.
+> Cryptographic parameters, passkey ceremonies, sessions, the sign-in of relying parties,
+> tokens and the recovery code. Statuses are explained in the [README](README.md).
 
-**Words.** These documents say *relying party* for what the interface and the decision
-records call an *application*: a website or an application that people sign in to through
+**Words.** This document says *relying party* for what the interface and the other
+documents call an *application*: a website or an application that people sign in to through
 brig·id. An *identity* belongs to an *account*; a relying party never sees the account.
 
 ---
@@ -25,6 +25,8 @@ brig·id. An *identity* belongs to an *account*; a relying party never sees the 
 
 ## 2. VSID Computation
 
+**Status:** built.
+
 VSID (Virtual Stable Identifier) is the stable, opaque `sub` claim of ID tokens. It gives one
 identity a **different identifier at each relying party**, and two identities of one account
 different identifiers at the same relying party: neither relying parties among themselves
@@ -35,7 +37,8 @@ nor one relying party alone can link them.
 The keying material is the **VSID secret**: one value per deployment, the same
 for every identity. It is 32 random bytes generated when the database is
 created and stored in it, encrypted with a key derived from `MASTER_KEY`
-([ADR-006](./decisions/006-vsid-secret.md)).
+(the secret is stored, not derived from the master key at each start, so that
+rotating the master key changes no VSID).
 
 A database created before the secret was stored keeps the value it used until
 then, `HKDF-SHA3-256(ikm = MASTER_KEY, info = "brigid-vsid-salt")[..32]`,
@@ -54,8 +57,7 @@ VSID = HKDF-SHA3-256(
 ```
 
 The identity's UUID has a fixed length and `client_id` is length-prefixed: the input is
-unambiguous. `v2` keeps it apart from the DID-based construction it replaced
-([ADR-007](./decisions/007-identifiers.md)).
+unambiguous. `v2` keeps it apart from the earlier construction, whose input was a DID.
 
 ### Invariants
 
@@ -73,7 +75,9 @@ unambiguous. `v2` keeps it apart from the DID-based construction it replaced
 
 ---
 
-## 3. WebAuthn Registration Flow
+## 3. Passkey Registration
+
+**Status:** built.
 
 ```
 Client                          brigid-api                      brigid-store
@@ -98,7 +102,7 @@ Client                          brigid-api                      brigid-store
 ```
 
 Sign-up asks for nothing but the passkey: the server generates the account's username,
-which the person never types ([ADR-003](./decisions/003-usernames-and-quick-signup.md)),
+which the person never types ([`model.md`](model.md) §1),
 and the account exists only once the passkey is stored. Registration opens the session.
 
 ### Security checks (registration)
@@ -112,7 +116,9 @@ and the account exists only once the passkey is stored. Registration opens the s
 
 ---
 
-## 4. WebAuthn Authentication Flow
+## 4. Passkey Authentication
+
+**Status:** built.
 
 ```
 Client                          brigid-api                      brigid-store
@@ -136,8 +142,8 @@ Client                          brigid-api                      brigid-store
   │◀── 204, Set-Cookie: __Host-brigid_session=… ──────────────────│
 ```
 
-Signing in opens an **account session** ([ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)
-§1), it issues no token: brig·id's own API never takes an ID token as a credential.
+Signing in opens an **account session** (§5); it issues no token. brig·id's own API never
+takes an ID token as a credential.
 Signup (`/auth/register/finish`) and recovery (`/auth/recovery/finish`) open one the same way.
 
 ### Username-less login (discoverable credentials)
@@ -155,61 +161,18 @@ answers `401`.
   stored value (cloned-authenticator detection). Synced passkeys report a counter of `0`
   on every assertion; `webauthn-rs` accepts `0` when the stored value is also `0`.
 - RP ID verified against server domain.
+- User verification is required in every ceremony, and a response without the UV flag is
+  refused ([`security-model.md`](security-model.md) §5).
 
 ---
 
-## 5. OIDC ID Token
+## 5. Account Session
 
-> **Status ([ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)):** no endpoint
-> issues an ID token today. Tokens come back with the Authorization Code flow of §2 of that
-> ADR, for an identity chosen by the user, with `sub` = the identity's VSID (ADR-007). The
-> structure below is what `brigid-oidc` issues.
+**Status:** built.
 
-### Token structure (JWT)
-
-```json
-{
-  "alg": "EdDSA",
-  "typ": "JWT",
-  "kid": "<uuid>"
-}
-```
-
-```json
-{
-  "sub":        "<vsid>",           // VSID — never username, alias, or DID
-  "iss":        "https://example.com",
-  "aud":        "<client_id>",
-  "exp":        1234567890,
-  "iat":        1234567890,
-  "jti":        "<uuid>",            // unique per token — replay prevention
-  "server":     "example.com",       // issuing server hostname, from its configuration
-  "alias_type": "public"             // constant; to be removed (ADR-002)
-}
-```
-
-The ID token deliberately omits the user's root DID (or any other stable,
-cross-RP user identifier). `sub` is a VSID derived from
-`(identity, client_id)` and the VSID secret, which makes it pairwise per relying party.
-Including a stable DID in any claim would let two colluding RPs correlate
-the same user across `aud` values and undermine the pairwise-subject
-privacy guarantee. `iss` and `server` identify the **issuer**, not the
-subject, and are therefore safe to publish.
-
-### Token validation (brigid-oidc)
-
-`brigid-oidc` exposes **two** validation paths with different replay semantics;
-choosing the right one is part of the protocol contract.
-
-`brigid-oidc` still has `validate_token` / `decode_token` and a `JtiStore`, from when the
-account session was a bearer ID token. **Nothing in the API calls them since ADR-005:**
-brig·id's API takes no ID token as a credential. A relying party validates the tokens it
-receives (signature with the JWKS, `iss`, `aud`, `exp`, `nonce`) with its own OIDC library.
-Removing the unused validation code from `brigid-oidc` is a follow-up.
-
----
-
-### Account session (ADR-005 §1)
+The session of an account with this server is server-side, behind a random token in a
+cookie. It is not a token for anyone else, and no endpoint accepts a `user_id` parameter:
+the account always comes from the session.
 
 | Property | Value |
 |---|---|
@@ -223,24 +186,168 @@ Removing the unused validation code from `brigid-oidc` is a follow-up.
 | Endpoint | Effect |
 |---|---|
 | `GET /auth/session` | `200 { idle_expires_at, expires_at }`, or `401` when there is no live session or its account is gone |
-| `POST /auth/logout` | deletes the session, clears the cookie (`204`) |
+| `POST /auth/logout` | deletes the session row and clears the cookie (`204`). The token is unknown from then on, across restarts too |
+
+*Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs),
+`EncryptedStore::{create_session, use_session, delete_session}`.
 
 ---
 
-## 6. Discovery Endpoints
+## 6. The Sign-in of Relying Parties
+
+**Status:** in review (core#92, server-leaf#79, app#56) for everything in this section not
+marked otherwise. On `main` today, no endpoint issues a token.
+
+A relying party obtains an ID token for an **identity**, never for the account, through the
+OpenID Connect Authorization Code flow.
+
+### Registered clients
+
+A relying party is registered on the server: a `client_id`, a name shown to people, and the
+exact `redirect_uris` it may use (`https`, or `http` on the loopback host for development).
+
+| Kind | Authentication at the token endpoint |
+|---|---|
+| Confidential | A secret of 256 random bits generated by the server, shown once, stored as its SHA3-256 hash. `client_secret_basic` or `client_secret_post` |
+| Public | None: PKCE alone ties the client to the code |
+
+### `GET /authorize` (also `POST`)
+
+1. The client and its redirect URI are checked first, by exact comparison. If either is
+   wrong, the browser is sent to this server's own page with an error, and nothing is sent
+   anywhere else.
+2. Any other error goes back to the relying party as an OAuth error, with its `state` and
+   the `iss` parameter (RFC 9207): `response_type` other than `code`, a scope without
+   `openid`, a missing or malformed PKCE challenge, `request` or `request_uri` (not
+   supported), `prompt=none` combined with another value.
+3. **PKCE with `S256` is mandatory for every client**, confidential ones included. `plain` is
+   never accepted.
+4. The navigation comes from another site, so it carries no session cookie
+   (`SameSite=Strict`). The request is held (ten minutes, in memory, with a cap) and the
+   browser is sent, by a `303`, to the interface page `/continue/?request=<id>`. From there
+   every call is same-origin.
+
+`state` and `nonce` are returned unchanged. `prompt=login` requires a passkey ceremony more
+recent than the request; `max_age` compares with the time of the last ceremony;
+`prompt=none` is answered without any page; unknown parameters are ignored.
+
+### The person's answer
+
+Same-origin endpoints, called by the linking page ([`model.md`](model.md) §5):
+
+| Endpoint | Effect |
+|---|---|
+| `GET /auth/authorize/{request}` | The relying party's registered name; whether a passkey ceremony is needed; the account's identities and the one last presented to this relying party |
+| `POST …/approve { identity_id }` | Issues a code for that identity and remembers the choice for this relying party. Requires the session, and an identity of the session's account |
+| `POST …/deny` | Returns the relying party's address with `access_denied` |
+| `POST …/silent` | For `prompt=none`: a code if a session is live and an identity was already chosen, else `login_required` or `interaction_required` |
+
+A request is answered once. The answer is the address to send the browser to: the redirect
+URI with `code`, `state` and `iss`.
+
+### `POST /token`
+
+- The client authenticates (table above). An unknown client and a wrong secret get the same
+  answer, `invalid_client`.
+- The **code** is single use, valid one minute, and is taken out at its first presentation,
+  whatever follows. It is refused unless the client, the `redirect_uri` and the PKCE
+  `code_verifier` are those of the request that obtained it; and if the identity was deleted
+  in the meantime.
+- The response carries the ID token, and an `access_token` because OAuth 2.0 requires the
+  field: a random value that no endpoint accepts.
+
+### ID token
+
+```json
+{ "alg": "EdDSA", "typ": "JWT", "kid": "<RFC 7638 thumbprint>" }
+```
+
+```json
+{
+  "sub":       "<vsid>",        // §2: this identity, at this relying party
+  "iss":       "https://example.com",
+  "aud":       "<client_id>",
+  "nonce":     "<from the request, if any>",
+  "auth_time": 1234567890,      // the passkey ceremony behind the session
+  "iat":       1234567890,
+  "exp":       1234568190,      // five minutes
+  "jti":       "<uuid>"
+}
+```
+
+**Nothing in it describes the person or the identity.** An identity's name and icon never
+leave the server. A claim that is the same at two relying parties would let them link their
+users; a test asserts that the payload holds these claims and no other.
+
+| Choice | Why |
+|---|---|
+| **EdDSA (Ed25519) by default, no RSA key** | One modern algorithm, one key type to protect. OpenID Connect Core §15.1 makes RS256 mandatory: a relying party whose library cannot verify EdDSA cannot use brig·id, and this is accepted |
+| **No UserInfo endpoint** | The ID token is enough; a second kind of token is avoided. Added at the first real need |
+| **Scope `openid` only** at step 1 | A relying party receives an identifier. Attributes come at step 2 ([`model.md`](model.md) §3–§5), in the ID token, released only for what the person accepted |
+| **No conformance or certification claim** | The OpenID Foundation's conformance suite requires RS256, requests without PKCE and UserInfo. Running it, and certification, are not part of v1; brig·id says that it implements the Authorization Code flow, and nothing more |
+
+*Decided — step 3:* a relying party can ask for ID tokens signed with the composite
+ML-DSA-65 + Ed25519 signature ([`pqc.md`](pqc.md)).
+
+*Reference (core#92):* `brigid-api/src/routes/authorize.rs`, `routes/token.rs`;
+`brigid-oidc/src/token.rs`, `pkce.rs`; `brigid-store` (tables `clients`,
+`client_identities`); integration tests `a_site_signs_a_person_in_and_learns_an_identifier_only`,
+`an_authorization_request_is_checked_before_anyone_is_asked`,
+`the_token_endpoint_gives_nothing_without_the_client_the_code_and_the_verifier`,
+`prompt_and_max_age_decide_whether_the_person_is_asked`.
+
+---
+
+## 7. Recovery Code
+
+**Status:** built. The split of the code is decided — step 3.
+
+A recovery code is generated by the server, never chosen by the person: a chosen passphrase
+would have little entropy and need a slow hash.
+
+| Bytes | Content |
+|---|---|
+| 8 | **Recovery id**: random; names the account through a keyed index, like usernames. It is neither the account's id nor its username |
+| 16 | **Secret**: random, 128 bits |
+| 1 | Check byte: a typo is reported before any request |
+
+Shown as 40 base32 characters in groups of four.
+
+- **Stored:** the keyed index of the recovery id (recomputed when the master key rotates),
+  and a verifier of the secret, `HKDF-SHA3-256(ikm = secret, info =
+  "brigid-recovery-verifier-v1")`, both encrypted with the account's key. Never the code.
+  The verifier needs no key: 128 random bits cannot be guessed from it.
+- **Flow:** `POST /auth/recovery/begin { code }` → a passkey registration challenge →
+  `POST /auth/recovery/finish` stores the new passkey, consumes the code and opens the
+  session. It enrols one passkey and does nothing else ([`model.md`](model.md) §6).
+- **Guards:** the rate limit of the ceremonies, constant-time comparison of verifiers, and
+  no lockout.
+
+*Decided — step 3:* with end-to-end encryption the code is split in the browser into a part
+that proves, sent to the server, and a part that decrypts, never sent
+([`security-model.md`](security-model.md) §7).
+
+*Reference:* `brigid-identity/src/recovery.rs`; `brigid-api/src/routes/recovery.rs`.
+
+---
+
+## 8. What a Server Publishes
 
 ### `GET /.well-known/openid-configuration`
 
-**Not served** until the relying-party flow of [ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)
-§2 (Authorization Code + PKCE, registered clients) exists: a discovery document that no
-client can use is worse than none (§3). The JWKS and the DID document stay.
+**Status:** in review (core#92). The endpoints of §6, `response_types_supported: ["code"]`,
+`subject_types_supported: ["pairwise"]`, `id_token_signing_alg_values_supported: ["EdDSA"]`,
+`scopes_supported: ["openid"]`, `code_challenge_methods_supported: ["S256"]`. It, the JWKS
+and the token endpoint can be read from any origin: none of them depends on a cookie.
 
 ### `GET /.well-known/jwks.json`
 
+**Status:** built.
+
 JWK Set containing the Ed25519 public keys that verify tokens: the current signing
 key first, then any key retired by a rotation and still within its grace period
-(see [`operations.md`](./operations.md) §2). A token names its key in the `kid` header;
-a token without `kid`, or with an unknown one, is rejected.
+(see [`operations.md`](./operations.md) §2). A token names its key in the `kid` header, and
+a relying party verifies it with the key of that name.
 
 ```json
 {
@@ -248,35 +355,15 @@ a token without `kid`, or with an unknown one, is rejected.
     "kty": "OKP",
     "crv": "Ed25519",
     "x":   "<base64url of 32-byte raw public key>",
-    "kid": "<uuid>",
+    "kid": "<RFC 7638 thumbprint>",
     "alg": "EdDSA",
     "use": "sig"
   }]
 }
 ```
 
-**Important implementation note:** `jsonwebtoken`'s `DecodingKey::from_ed_der` must be
-given the raw 32-byte public key, **not** SubjectPublicKeyInfo DER
-([ADR-001](./decisions/001-ring-eddsa-decoding-key-format.md)). See [`brigid-oidc/src/key.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-oidc/src/key.rs) — `decoding_key()`.
-
----
-
-## 7. DID Web Document
-
 ### `GET /.well-known/did.json`
 
-Exposes the server's DID Web document, enabling DID-based identity resolution.
-
-*Reference:* [`brigid-did/src/web.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-did/src/web.rs) — `did_web_document()`
-
----
-
-## 8. Logout Flow
-
-`POST /auth/logout` (same-origin, with the session cookie) deletes the session row and
-answers `204` with a `Set-Cookie` that removes the cookie. The session cannot be revived:
-its token is unknown from then on, across restarts too. There is no token to revoke, so no
-JTI blacklist.
-
-*Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs),
-`EncryptedStore::{create_session, use_session, delete_session}`.
+**Status:** built; its removal is decided — step 1. The document repeats the key that the
+JWKS publishes, and nothing reads it. A relying party finds a server through the two
+documents above.

@@ -2,7 +2,7 @@
 
 > **Working draft, not a submission.** OSTIF takes requests through its intake form
 > (<https://ostif.org/get-an-audit/>), then an introductory call and a scoping
-> questionnaire. See [ADR-010](../../decisions/010-third-party-audit-funding.md).
+> questionnaire. See [`audit/README.md`](../README.md).
 >
 > **Before sending:** rewrite it in your own words; fill what is between `[brackets]`; be
 > plain about the stage of the project (pre-1.0, one deployment): OSTIF prioritises by

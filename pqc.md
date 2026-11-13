@@ -92,9 +92,14 @@ Using hybrids ensures:
 - [x] Composite ML-DSA-65 + Ed25519 signatures implemented and tested against the draft's vector
 - [x] Fuzz targets for both primitives
 
-### Phase B — Wire PQC to OIDC signing (step 3 of v1, [ADR-025](decisions/025-server-surface.md))
-- [ ] A composite ML-DSA-65 + Ed25519 signing key, used for the relying parties that ask for it
-      (Ed25519 stays the default)
+### Phase B — Wire PQC to OIDC signing (decided — step 3 of v1)
+- [ ] A composite ML-DSA-65 + Ed25519 signing key, used for the relying parties that ask for it.
+      Ed25519 stays the default and there is still no RSA key. The JOSE identifier and key
+      format follow the IETF draft current at implementation, and may change with it; almost
+      no relying-party library can verify such a token today, which is accepted. The
+      demonstration site verifies one, so that it is tested end to end
+- [ ] X-Wing stays unused in v1; whether it has a role in end-to-end encryption is a question
+      for that design, not a commitment
 - [ ] JWKS endpoint extended with hybrid public key
 - [ ] `id_token_signing_alg_values_supported` updated to `["EdDSA", "ML-DSA-65+Ed25519"]`
 
