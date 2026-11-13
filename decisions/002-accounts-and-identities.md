@@ -2,6 +2,16 @@
 
 **Status:** Accepted
 
+> **Read with what followed.** [ADR-005](005-account-sessions-and-rp-tokens.md): the account
+> has a session, never a token; the token endpoint of this record is gone.
+> [ADR-007](007-identifiers.md): identities have no DID; the VSID derives from the
+> identity's UUID. [ADR-022](022-identity-attributes-and-consent.md): an identity's name
+> and logo are labels for the person and are never sent to a relying party, which receives
+> an identifier and the attributes the person accepted to share.
+> [ADR-024](024-account-lifecycle.md): starter identities are proposed, not created by the
+> server, and a passkey always opens an account, never one identity.
+> [ADR-015](015-icons.md): logo references are `icon:ph:<name>`.
+
 ## Context
 
 Until now a brig·id user is a single record (`users`): its root DID

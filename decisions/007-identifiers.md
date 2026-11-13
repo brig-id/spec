@@ -1,6 +1,8 @@
 # ADR-007 — Identifiers: UUIDs for accounts and identities, a DID for the server only
 
 **Status:** Accepted (2026-11-11, security audit finding S3)
+The server's own DID document is removed by [ADR-025](025-server-surface.md) §1; the rest
+of this record holds.
 
 ## Context
 

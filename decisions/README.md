@@ -9,7 +9,7 @@ the decision made, and the consequences.
 
 | ADR | Title | Status |
 |---|---|---|
-| [001](001-ring-eddsa-decoding-key-format.md) | `jsonwebtoken` + ring: EdDSA DecodingKey expects raw 32-byte public key | Accepted |
+| [001](001-ring-eddsa-decoding-key-format.md) | `jsonwebtoken` + ring: EdDSA DecodingKey expects raw 32-byte public key | Deprecated |
 | [002](002-accounts-and-identities.md) | Accounts and identities | Accepted |
 | [003](003-usernames-and-quick-signup.md) | Usernames and passkey-only quick signup | Accepted |
 | [004](004-account-recovery.md) | Account recovery when every passkey is lost | Accepted |
@@ -32,6 +32,8 @@ the decision made, and the consequences.
 | [021](021-sharing-between-servers.md) | Identities across servers: no linked accounts, nothing shared between servers | Accepted |
 | [022](022-identity-attributes-and-consent.md) | What an application may receive: identity attributes, shown and accepted on the linking page | Accepted |
 | [023](023-end-to-end-encryption.md) | What describes a person is encrypted end to end, with a key only their passkey gives | Accepted (objective of v1; design completed at step 2) |
+| [024](024-account-lifecycle.md) | The life of an account: starting, recovering, leaving | Accepted |
+| [025](025-server-surface.md) | What a server publishes about itself: no DID document; post-quantum signatures on request | Accepted |
 
 A **Proposed** ADR is an analysis with a recommendation. It binds nothing until its status
 changes to Accepted.

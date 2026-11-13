@@ -37,7 +37,8 @@ in, so it must not become a weaker equivalent of a password.
   from the account; generating one replaces the previous one.
 - **Interaction with the last-passkey guard (core#41):** unchanged. Recovery adds a passkey,
   it never removes one.
-- **Optional.** An account without a recovery code keeps today's behaviour.
+- **Optional** when this was written; **mandatory** since
+  [ADR-024](024-account-lifecycle.md) §3: onboarding does not finish without a code kept.
 
 ## Consequences
 

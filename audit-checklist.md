@@ -14,8 +14,8 @@ This audit covers:
 |---|---|---|
 | `brigid-crypto` (`brig-id/crypto`) | 1 | Cryptographic primitives |
 | `brigid-store` | 2 | Zero-trust SQLite storage |
-| `brigid-did` | 2 | DID:web and DID:peer resolution |
-| `brigid-identity` | 3 | VSID computation, `RootId` |
+| `brigid-did` | 2 | The server's own DID document (to be removed: ADR-025) |
+| `brigid-identity` | 3 | VSID computation, usernames, recovery codes |
 | `brigid-webauthn` | 4 | Passkey registration and authentication |
 | `brigid-oidc` | 5 | JWT issuance and validation |
 | `brigid-api` | 6 | Axum HTTP server |
@@ -63,8 +63,9 @@ This audit covers:
 ### 2.3 Identity correlation
 - [ ] Can two relying parties correlate users via the `sub` claim?
   - *Check:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — VSID includes `client_id` in HKDF `info`
-- [ ] Can VSID be derived from an alias?
-  - *Check:* `brigid-identity` tests — `vsid_never_derived_from_alias`
+- [ ] Can two identities of one account be linked through their `sub` at one relying party?
+  - *Check:* `brigid-identity` test `different_identity_different_vsid`; the VSID input is
+    the identity's UUID, nothing shared between identities
 
 ### 2.4 Storage compromise
 - [ ] Does a raw SQLite dump reveal any readable secrets?

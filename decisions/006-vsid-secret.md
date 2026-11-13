@@ -56,6 +56,8 @@ incident is in the "deliberate migration" case above.
   (`did:web:<host>:i:<id>`). Moving an instance to another domain changes every VSID.
   Whether the VSID input should be the identity's id alone is left to the decision on what
   DIDs are for.
+  **Settled by [ADR-007](007-identifiers.md):** the input is the identity's UUID; a VSID
+  no longer depends on the domain.
 
 ## Implementation
 
