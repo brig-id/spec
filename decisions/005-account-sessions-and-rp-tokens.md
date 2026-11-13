@@ -44,10 +44,9 @@ ADR-002 left "account sessions vs RP tokens" open. This ADR closes it.
 
 ### 2. A relying party gets a token through the Authorization Code flow
 
-> [ADR-008](008-oidc-conformance.md) §3 amends this section so that the flow can pass the
-> OpenID Foundation conformance suite: RS256 next to EdDSA, confidential clients with a
-> secret, PKCE mandatory for public clients and the default for confidential ones, a
-> UserInfo endpoint, and the standard request parameters.
+> [ADR-008](008-oidc-conformance.md) completes this section for v1: EdDSA only, confidential
+> and public clients, PKCE for every client, no UserInfo endpoint, and the identifier as the
+> only thing a site receives.
 
 - RPs are **registered**: `client_id`, display name, exact `redirect_uris`. A request
   naming an unknown client or an unregistered redirect is refused before any user

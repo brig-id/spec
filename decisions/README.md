@@ -16,7 +16,7 @@ the decision made, and the consequences.
 | [005](005-account-sessions-and-rp-tokens.md) | Account sessions and relying-party tokens are separate things | Accepted |
 | [006](006-vsid-secret.md) | The VSID secret is stored, not derived from the master key | Accepted |
 | [007](007-identifiers.md) | Identifiers: UUIDs for accounts and identities, a DID for the server only | Accepted |
-| [008](008-oidc-conformance.md) | OIDC conformance: the OpenID Foundation suite in CI for v1, certification after | Accepted |
+| [008](008-oidc-conformance.md) | The relying-party flow for v1; OpenID conformance testing and certification are not now | Accepted |
 | [009](009-passkeys-only-user-verification.md) | Authentication: passkeys only, user verification required, no attestation | Accepted |
 | [010](010-third-party-audit-funding.md) | Third-party security audit: NLnet first, OSTIF second, public call later | Accepted |
 | [011](011-releases-and-dependency-flow.md) | Releases: tagged versions everywhere, release-please, Renovate | Accepted |
@@ -30,6 +30,7 @@ the decision made, and the consequences.
 | [019](019-editions.md) | Editions: what leaf, grove and forest are made of | Proposed |
 | [020](020-licensing-and-pricing.md) | Licences and pricing: AGPL with a commercial licence, paid modules kept apart | Proposed |
 | [021](021-sharing-between-servers.md) | Identities across servers: no linked accounts, nothing shared between servers | Proposed |
+| [022](022-identity-attributes-and-consent.md) | What a site may receive: identity attributes, shown and accepted on the linking page | Proposed |
 
 A **Proposed** ADR is an analysis with a recommendation. It binds nothing until its status
 changes to Accepted.
