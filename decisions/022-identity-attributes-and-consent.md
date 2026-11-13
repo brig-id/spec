@@ -1,8 +1,8 @@
-# ADR-022 — What a site may receive: identity attributes, shown and accepted on the linking page
+# ADR-022 — What an application may receive: identity attributes, shown and accepted on the linking page
 
-**Status:** Proposed (2026-11-13). In scope for milestone 2 of v1
-([ADR-014](014-three-products.md)); until then a site receives an identifier and nothing
-else ([ADR-008](008-oidc-conformance.md)).
+**Status:** Accepted (2026-11-13, review round 4 with the owner). Built at step 2 of v1
+([ADR-014](014-three-products.md)); until then an application receives an identifier and
+nothing else ([ADR-008](008-oidc-conformance.md)).
 
 ## Context
 
@@ -20,7 +20,7 @@ model more precise:
 Separately: an identity has no e-mail address, by design, and many applications want one to
 create an account. An analysis was asked before anything is built.
 
-## Proposal
+## Decision
 
 ### 1. Two kinds of data on an identity
 
@@ -35,33 +35,37 @@ Attributes are optional, typed, and stored encrypted like the other fields of an
 They belong to one identity: nothing is copied from one identity to another, and the
 account has none.
 
-### 1b. "Connector" covers two things, to be named apart
+### 1b. Two words in place of "connector"
 
-The word has been used for two different links of an identity:
+"Connector" had been used for two different links of an identity. They are named apart, in
+the interface and in the documents:
 
-| | Towards a site that signs people in | Towards a service the identity uses |
+| | **Application** | **Service** |
 | --- | --- | --- |
-| What it is | A site the identity signs in to through brig·id | An outside service (a code forge, a task manager, a video platform…) the identity is connected to, so that brig·id can hand an authorised application what it needs to act there, possibly no more than a token |
-| brig·id is | The provider: the site trusts it | The client: it holds an access the service granted |
+| What it is | What an identity signs in to through brig·id: a website, a mobile or desktop application | An outside service the identity is connected to (a code forge, a task manager, a mail relay…), so that brig·id can hand an authorised application what it needs there, possibly no more than a token |
+| brig·id is | The provider: the application trusts it | The client: it holds an access the service granted, or operates the service |
 | Exists | With the relying-party flow | Not designed |
 
-Two terms are needed; they are not chosen yet. This ADR uses **site** for the first and
-keeps **connector** for the second. **No connector is part of v1.** Each one will need its
-own analysis: what the server stores, who may obtain a token, and how the person sees and
+Other words may join these two later. **No service is part of v1.** Each one will need its
+own record: what the server stores, who may obtain what, and how the person sees and
 withdraws it.
 
-### 2. How a site asks
+### 2. The attributes of v1, and how an application asks
 
 With the standard OpenID Connect scopes and claims, so that ordinary libraries work:
 
-| Scope | Claims |
-| --- | --- |
-| `openid` | `sub` |
-| `profile` | `given_name`, `family_name`, `preferred_username` |
-| `email` | `email`, `email_verified` (§5) |
+| Scope | Claims | Attribute |
+| --- | --- | --- |
+| `openid` | `sub` | (the identifier) |
+| `profile` | `given_name`, `family_name` | First name, last name |
+| `profile` | `preferred_username` | A username chosen for this identity |
+| `profile` | `picture` | A photo or avatar chosen by the person |
+| `profile` | `locale`, `zoneinfo` | Language, time zone |
+| `email` | `email`, `email_verified` | An address (§5) |
 
-- A site can only ask for what its registration allows: the administrator who registers it
-  lists the scopes it may request. A request for more is refused.
+- An application can only ask for what its registration allows: the administrator who
+  registers it lists what it may request, and **which of it the application cannot do
+  without**. A request for more is refused.
 - The claims travel in the ID token. There is no UserInfo endpoint until a real need.
 
 ### 3. The linking page
@@ -72,7 +76,9 @@ shows:
 - the site's registered name, and the identity chosen;
 - **each attribute asked for, with the value that would be sent**, one line each;
 - what the identity does not have (the site asked, there is nothing to give);
-- a way to refuse an attribute and continue, and a way to stop.
+- for each attribute, whether the application declared it **required** or **optional**: an
+  optional one can be refused and the sign-in continues; refusing a required one stops it;
+- a way to stop.
 
 Rules:
 
@@ -100,25 +106,50 @@ the account.
 | Option | What it takes | Problem |
 | --- | --- | --- |
 | A. None | Nothing | Applications that require an address do not work, or ask for it themselves |
-| B. An address the person types on an identity, sent unverified (`email_verified: false`) | A field | Many applications refuse or distrust an unverified address; the same address on two identities links them |
-| C. The same, verified by brig·id (a confirmation message) | The server must send mail: an SMTP account to configure, even on a `seedling` | A dependency and a failure mode for the smallest edition; the server learns a real address |
-| D. A relay address generated per identity and per site, forwarded to a real address | The server receives and forwards mail: a domain's mail records, deliverability, abuse handling | A mail service to operate. Out of reach for a `seedling`; conceivable for a hosted offer |
-| E. A made-up, undeliverable address derived from the identifier | Nothing | It satisfies a form and breaks every message the application sends. It is a false statement to the site |
+| B. An address the person types on an identity | A field; a way to send mail if it is to be verified | The same address on two identities links them |
+| C. A relay address per identity, forwarded to a real one | Receiving and forwarding mail: a domain's mail records, deliverability, abuse handling | A mail service to operate |
+| D. A made-up, undeliverable address | Nothing | A false statement to the application, and every message it sends is lost |
 
-**Recommendation:** A for v1 (decided). After v1, **B**, as an attribute like the others,
-shown on the linking page with the warning of §4. C only when a server has a reason to send mail
-anyway. D as a possible feature of a hosted offer, with its own ADR. E never.
+**Decided:**
+
+- **B, at step 2.** An identity can carry an address. It is optional, and the interface
+  recommends it, because so many applications need one.
+- **Verified when the server can send mail.** If the administrator configured an outgoing
+  mail account, the address is confirmed by a message and shared as verified; otherwise it
+  is shared as unverified. A small server is not required to send mail.
+- **The same address on two identities:** the interface warns clearly that it links them,
+  says that a variant of the same mailbox (`name+work@…`) protects little, and lets the
+  person decide.
+- **C is a service, later**: either an existing relay provider that the administrator plugs
+  in, or a module of the project. The administrator enables it or not. It removes the
+  linking problem of B, and gets its own record.
+- D never.
+
+### 5b. Facts inherited from a certified account
+
+An account could one day carry an official certification of the person, from which an
+identity would share **derived facts** without the details: being of age, an age, being a
+certified person. A yes to "of age" links nothing, which fits the model well.
+
+**After v1, with its own record, analysis first**: where a certification can really come
+from (a state digital identity, the European identity wallet, a verification provider, a
+server's administrator) is to be studied before anything is chosen.
 
 ### 6. Order
 
-1. Milestone 1 of v1 ([ADR-014](014-three-products.md)): the identifier only.
-2. Milestone 2: attributes (given name, family name, username) and the linking page of §3.
-3. After v1: the e-mail question (§5), and connectors (§1b), each with its own record.
+1. Step 1 of v1: the identifier only.
+2. Step 2: the attributes of §2, required and optional, the linking page of §3, the
+   address of §5. They are stored so that end-to-end encryption
+   ([ADR-023](023-end-to-end-encryption.md)) can take them over at step 3 without a second
+   migration.
+3. After v1: services (§1b), among them the mail relay; facts inherited from a certified
+   account (§5b).
 
 ## Consequences
 
 - [ADR-002](002-accounts-and-identities.md)'s sentence "an identity is what a relying party
-  sees" is to be read as: a site sees an identifier, and what the person accepted to share.
+  sees" is to be read as: an application sees an identifier, and what the person accepted
+  to share.
 - `core`: attributes on identities, scopes allowed per registered client, the grants
   (identity, site, attributes, values accepted), their withdrawal.
 - `app`: the attributes of an identity, the linking page, the per-site view of what was

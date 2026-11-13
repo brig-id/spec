@@ -29,8 +29,9 @@ the decision made, and the consequences.
 | [018](018-app-structure.md) | The three parts of the app: sign-in, account, administration | Accepted |
 | [019](019-editions.md) | Editions: what seedling, grove and forest are made of | Accepted |
 | [020](020-licensing-and-pricing.md) | Licences and pricing: AGPL alone, a registered name, paid services | Accepted |
-| [021](021-sharing-between-servers.md) | Identities across servers: no linked accounts, nothing shared between servers | Proposed |
-| [022](022-identity-attributes-and-consent.md) | What a site may receive: identity attributes, shown and accepted on the linking page | Proposed |
+| [021](021-sharing-between-servers.md) | Identities across servers: no linked accounts, nothing shared between servers | Accepted |
+| [022](022-identity-attributes-and-consent.md) | What an application may receive: identity attributes, shown and accepted on the linking page | Accepted |
+| [023](023-end-to-end-encryption.md) | What describes a person is encrypted end to end, with a key only their passkey gives | Accepted (objective of v1; design completed at step 2) |
 
 A **Proposed** ADR is an analysis with a recommendation. It binds nothing until its status
 changes to Accepted.

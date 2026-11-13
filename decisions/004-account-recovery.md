@@ -47,6 +47,10 @@ in, so it must not become a weaker equivalent of a password.
 - A server operator cannot reset an account: an account without passkey and without recovery
   code is lost, and is deleted and created again ([ADR-018](018-app-structure.md) §4).
 
+- [ADR-023](023-end-to-end-encryption.md) §4 changes the flow at step 3 of v1: the code is
+  split in the browser into a part that proves, sent to the server, and a part that decrypts
+  the account's data, never sent. Until then the flow above is the one that runs.
+
 ## References
 
 - core#52, core#41, spec#8

@@ -1,6 +1,8 @@
 # ADR-009 — Authentication: passkeys only, user verification required, no attestation
 
-**Status:** Accepted (2026-11-13)
+**Status:** Accepted (2026-11-13). Amended the same day by
+[ADR-023](023-end-to-end-encryption.md) §2: **a passkey must also support the PRF
+extension**; one that does not is refused, from sign-up.
 
 ## Context
 
@@ -17,9 +19,11 @@ no "trust this device" that skips the passkey. The recovery code
 ([ADR-004](004-account-recovery.md)) is not an authentication method: it enrols one new
 passkey and opens nothing by itself.
 
-A passkey is a discoverable WebAuthn credential, whatever holds it: Windows Hello, Touch ID
-and Face ID, an Android screen lock, a security key with a PIN or a fingerprint reader
-(YubiKey Bio), a password manager.
+A passkey is a discoverable WebAuthn credential: Windows Hello, Touch ID and Face ID, an
+Android screen lock, a security key with a PIN or a fingerprint reader (YubiKey Bio), a
+password manager. Whatever holds it must support the PRF extension
+([ADR-023](023-end-to-end-encryption.md) §2), which leaves out Windows 10 and some password
+managers.
 
 ### 2. User verification is required, everywhere
 

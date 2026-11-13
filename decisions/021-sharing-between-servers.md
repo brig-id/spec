@@ -1,7 +1,6 @@
 # ADR-021 — Identities across servers: no linked accounts; nothing shared between servers
 
-**Status:** Proposed (2026-11-13). Recommendation: do not build account linking or
-server-to-server sharing; keep the aggregation in the person's browser if it is wanted.
+**Status:** Accepted (2026-11-13, review round 4 with the owner).
 
 ## Context
 
@@ -95,46 +94,10 @@ keeps seeing two.
 
 ### 5. End-to-end encryption with a key only the user holds
 
-Worth studying for itself, not as a way to make sharing safe.
-
-**Mechanism.** The WebAuthn **PRF** extension makes the authenticator compute a secret from
-a passkey and a salt, at sign-in. The server never sees it. A random data key encrypts the
-account's private fields; it is stored once per passkey, wrapped by that passkey's PRF
-output.
-
-**Support** (a third-party matrix dated September 2026; to re-measure before any decision):
-
-| | PRF |
-| --- | --- |
-| iCloud Keychain, Safari 18 / iOS 18 / macOS 15 and later | Yes (cross-device flows lost data on iOS 18.0–18.3) |
-| Google Password Manager on Android | Yes |
-| Windows Hello | Only on Windows 11 with the February 2026 update, in recent Chrome, Edge and Firefox; not on Windows 10 |
-| Security keys with `hmac-secret` | Yes in Chrome and Firefox; open defects in Safari |
-| Password managers | 1Password and Proton Pass yes; Bitwarden partial; Dashlane and NordPass no |
-
-**Consequences that cannot be designed away:**
-
-- **Not everyone has it.** Either accounts without PRF keep server-side encryption (two
-  classes of accounts), or they are refused, against
-  [ADR-009](009-passkeys-only-user-verification.md) ("a passkey, whatever holds it").
-- **One wrapped key per passkey.** Adding a passkey requires a session that has the data
-  key. Synced passkeys carry their PRF secret with them, so they work.
-- **Losing every passkey loses the data**, unless the recovery code can also unwrap the key.
-  [ADR-004](004-account-recovery.md) would have to change: today the code is sent to the
-  server; it would have to be split in the browser into a part that proves and a part that
-  decrypts, the second never sent. An account without a recovery code and without a passkey
-  would be empty for ever, and the product must say so plainly.
-- **The interface is served by the operator.** A malicious operator ships a page that sends
-  the key home. End-to-end encryption in a web page protects against a database or backup
-  leak with the master key, a curious administrator, and a request for stored data. It does
-  not protect against an operator who decides to cheat.
-- **The server still knows the graph**: which identities exist, whose they are, at which
-  sites they are used and when. It has to: it signs the tokens.
-
-So PRF can hide an identity's *name, description and settings* from a passive operator. It
-cannot hide what §2 says matters. Tim Cappalli, co-editor of WebAuthn Level 3, has warned
-against designs where a passkey's PRF output is the only way to the data, with no
-independent recovery: losing the passkey then loses everything.
+Looked at here as a way to make sharing safe, which it is not: it can hide an identity's
+name, description and attributes from the operator, and cannot hide what §2 says matters.
+It is worth having for itself, and the review made it an objective of v1:
+[ADR-023](023-end-to-end-encryption.md).
 
 ### 6. Revocation
 
@@ -150,26 +113,29 @@ own certificate authority (the pattern of OpenPubkey SSH and of `step-ca`). A ce
 from B's authority is accepted only by machines that trust B: unusable outside the company,
 by construction. Its own ADR when the time comes.
 
-## Recommendation
+## Decision
 
-1. **Never link accounts across servers.** Add it to the security invariants: a server holds
-   no reference to an account or identity of another server.
-2. **Build no server-to-server sharing.** Separation by server is the feature; say so in the
-   documentation and on the site ("an identity lives on one server and works only for the
-   sites of that server").
-3. **If a single view is wanted, build it in the browser** (a list of "my servers", local
-   only), after v1. It builds on the "choose another server" step of the sign-in page
+1. **Accounts and identities are never linked across servers.** A security invariant: a
+   server holds no reference to an account or an identity of another server.
+2. **No server-to-server sharing is built.** Separation by server is the feature, and the
+   documentation and the site say so: an identity lives on one server and works only for
+   the applications of that server.
+3. **A single view, in the browser, after v1**: a list of "my servers" kept in the browser
+   only. It builds on the "choose another server" step of sign-in
    ([ADR-003](003-usernames-and-quick-signup.md)).
-4. **End-to-end encryption by PRF: a research track after v1**, with a prototype and real
-   support measurements, and its own ADR. Not a prerequisite of anything.
-5. **SSH certificates: later**, own ADR.
+4. **End-to-end encryption is an objective of v1**, for itself:
+   [ADR-023](023-end-to-end-encryption.md).
+5. **SSH certificates: after v1**, as a service of an identity
+   ([ADR-022](022-identity-attributes-and-consent.md) §1b), with their own record.
+
+**Not defined: "the brig·id network".** The idea of servers connected to a network (a
+directory of servers, a federation, or both) exists and has no definition yet. It is a
+subject of analysis after v1. Whatever it becomes, it must hold with point 1.
 
 ## Consequences
 
-- No protocol between servers to specify, implement or audit. The audit scope of
-  [ADR-010](010-third-party-audit-funding.md) does not grow.
-- [`security-model.md`](../security-model.md) gains the invariant of point 1 when this is
-  accepted.
+- No protocol between servers to specify, implement or audit in v1.
+- [`security-model.md`](../security-model.md) gains the invariant of point 1.
 - The origin idea, "from B one sees the five", is given up as stated.
 
 ## References
