@@ -82,7 +82,6 @@ Using hybrids ensures:
 | OIDC token signing | Ed25519 (classical) | PQC hybrid available in brigid-crypto; not yet wired to OIDC |
 | Storage key derivation | HKDF-SHA3-256 (quantum-resistant) | SHA-3 is quantum-resistant (Grover's: security halved, still 128-bit) |
 | WebAuthn credential storage | AES-256-GCM (quantum-resistant) | AES-256 is quantum-resistant (Grover's: security halved, still 128-bit) |
-| DID key material | Ed25519 (classical) | Migration to hybrid planned |
 
 ---
 
@@ -93,8 +92,9 @@ Using hybrids ensures:
 - [x] Composite ML-DSA-65 + Ed25519 signatures implemented and tested against the draft's vector
 - [x] Fuzz targets for both primitives
 
-### Phase B — Wire PQC to OIDC signing (planned)
-- [ ] `OidcSigningKey` extended to support ML-DSA-65 + Ed25519 hybrid
+### Phase B — Wire PQC to OIDC signing (step 3 of v1, [ADR-025](decisions/025-server-surface.md))
+- [ ] A composite ML-DSA-65 + Ed25519 signing key, used for the relying parties that ask for it
+      (Ed25519 stays the default)
 - [ ] JWKS endpoint extended with hybrid public key
 - [ ] `id_token_signing_alg_values_supported` updated to `["EdDSA", "ML-DSA-65+Ed25519"]`
 

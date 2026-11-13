@@ -59,6 +59,12 @@ discoverable-credential challenge, and the user is taken from the passkey's user
   mistaken for the first. A **temporary** handle is a generated one the server may recycle
   after the identity is deleted, never while it exists.
 
+The username attribute of [ADR-022](022-identity-attributes-and-consent.md)
+(`preferred_username`) is another thing: a handle an identity shows to applications, not a
+name to sign in with. Signing in directly as an identity is closed by
+[ADR-024](024-account-lifecycle.md) §2, so the sign-in username described above has no
+planned use.
+
 ### Templates
 
 Identity templates (core#51) only pre-fill the display fields (name, logo, description); an

@@ -11,11 +11,11 @@ description, and calls it "what a relying party sees". The review of 2026-11-13 
 model more precise:
 
 - **The name and the icon of an identity are labels inside brig·id.** They help the person
-  tell their identities apart. No site ever needs them, and no site receives them.
+  tell their identities apart. No application ever needs them, and no application receives them.
 - **An identity can also carry information about the person**: a first name, a last name, a
-  username, connectors. A site may ask for some of it.
+  username, connectors. An application may ask for some of it.
 - **Nothing is shared without the person seeing exactly what, and accepting it**, on the
-  page that links the identity to the site.
+  page that links the identity to the application.
 
 Separately: an identity has no e-mail address, by design, and many applications want one to
 create an account. An analysis was asked before anything is built.
@@ -27,7 +27,7 @@ create an account. An analysis was asked before anything is built.
 | | Label | Attributes |
 | --- | --- | --- |
 | What | Name, icon, description | Values the person enters in order to share them |
-| Seen by | The person, in brig·id | A site, only after consent (§3) |
+| Seen by | The person, in brig·id | An application, only after consent (§3) |
 | Required | Name and icon | None: an identity can have no attribute at all |
 | Examples | "Work", a briefcase | Given name, family name, username |
 
@@ -70,12 +70,12 @@ With the standard OpenID Connect scopes and claims, so that ordinary libraries w
 
 ### 3. The linking page
 
-When a site asks for more than the identifier, the page that links the identity to the site
+When an application asks for more than the identifier, the page that links the identity to the application
 shows:
 
-- the site's registered name, and the identity chosen;
+- the application's registered name, and the identity chosen;
 - **each attribute asked for, with the value that would be sent**, one line each;
-- what the identity does not have (the site asked, there is nothing to give);
+- what the identity does not have (the application asked, there is nothing to give);
 - for each attribute, whether the application declared it **required** or **optional**: an
   optional one can be refused and the sign-in continues; refusing a required one stops it;
 - a way to stop.
@@ -84,20 +84,20 @@ Rules:
 
 - No box is ticked in advance on the person's behalf, and nothing is sent by default beyond
   the identifier.
-- What was accepted is remembered per identity and per site. A later request for the same
+- What was accepted is remembered per identity and per application. A later request for the same
   attributes passes without the page; a request for one more shows the page again.
 - If an accepted value changes, the next sign-in shows the page again: the person accepted a
   value, not a field name.
 - A silent request (`prompt=none`) succeeds only when everything asked was already accepted.
-- From the identity's page the person sees, per site, what was shared and when, and can
-  withdraw it. Withdrawing stops future sharing; it cannot take back what a site already
+- From the identity's page the person sees, per application, what was shared and when, and can
+  withdraw it. Withdrawing stops future sharing; it cannot take back what an application already
   holds, and the page says so.
 
 ### 4. Attributes link identities
 
-The per-site identifier keeps two identities apart. An attribute can undo that: the same
-family name, username or e-mail address given through two identities lets two sites, or one
-site, connect them. This cannot be solved by the protocol. The interface says it where the
+The per-application identifier keeps two identities apart. An attribute can undo that: the same
+family name, username or e-mail address given through two identities lets two applications, or one
+application, connect them. This cannot be solved by the protocol. The interface says it where the
 person fills an attribute in, and warns when a value is already used on another identity of
 the account.
 
@@ -151,10 +151,10 @@ server's administrator) is to be studied before anything is chosen.
   sees" is to be read as: an application sees an identifier, and what the person accepted
   to share.
 - `core`: attributes on identities, scopes allowed per registered client, the grants
-  (identity, site, attributes, values accepted), their withdrawal.
-- `app`: the attributes of an identity, the linking page, the per-site view of what was
+  (identity, application, attributes, values accepted), their withdrawal.
+- `app`: the attributes of an identity, the linking page, the per-application view of what was
   shared.
-- The public site's wording about what a website learns follows this model.
+- The public application's wording about what a website learns follows this model.
 
 ## References
 

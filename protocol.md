@@ -4,6 +4,10 @@
 > This document describes the WebAuthn registration/authentication flows,
 > OIDC ID Token issuance, VSID computation, and cryptographic parameters.
 
+**Words.** These documents say *relying party* for what the interface and the decision
+records call an *application*: a website or an application that people sign in to through
+brig·id. An *identity* belongs to an *account*; a relying party never sees the account.
+
 ---
 
 ## 1. Cryptographic Parameters
@@ -21,14 +25,10 @@
 
 ## 2. VSID Computation
 
-VSID (Virtual Stable Identifier) is the stable, opaque `sub` claim in OIDC tokens.
-
-> **Accepted, not implemented:** [ADR-007](./decisions/007-identifiers.md) replaces the
-> identity DID in the formula below by the identity's UUID (`info = "brigid-vsid-v2" ||
-> identity_uuid || u32_be(len(client_id)) || client_id`) and removes account and identity
-> DIDs. The rest of this section describes the code as it runs today.
-It ensures that the same user has a **different identifier per relying party**,
-preventing cross-RP identity correlation.
+VSID (Virtual Stable Identifier) is the stable, opaque `sub` claim of ID tokens. It gives one
+identity a **different identifier at each relying party**, and two identities of one account
+different identifiers at the same relying party: neither relying parties among themselves
+nor one relying party alone can link them.
 
 ### Formula
 
@@ -40,39 +40,35 @@ created and stored in it, encrypted with a key derived from `MASTER_KEY`
 A database created before the secret was stored keeps the value it used until
 then, `HKDF-SHA3-256(ikm = MASTER_KEY, info = "brigid-vsid-salt")[..32]`,
 recorded as its secret at the first start or the first `rotate-key` of the
-upgraded server: its VSIDs do not change.
+upgraded server.
 
 ```
 VSID = HKDF-SHA3-256(
     ikm  = vsid_secret,                   // deployment-wide, stored encrypted
-    salt = none,                          // HKDF's own salt param is unused (zero-padded)
-    info = "brigid-vsid-v1" ||
-           u32_be(len(did_root)) || did_root ||
+    salt = none,
+    info = "brigid-vsid-v2" ||
+           identity_uuid (16 bytes) ||
            u32_be(len(client_id)) || client_id
 )[..32]
 → encoded as unpadded base64url (43 chars)
 ```
 
-Length-prefixing `did_root` and `client_id` in `info` prevents collisions
-from the `:` characters that appear in both DIDs and, potentially, client
-IDs.
+The identity's UUID has a fixed length and `client_id` is length-prefixed: the input is
+unambiguous. `v2` keeps it apart from the DID-based construction it replaced
+([ADR-007](./decisions/007-identifiers.md)).
 
 ### Invariants
 
-1. Same `(did_root, client_id)` → same VSID (deterministic; the VSID secret
-   is constant per deployment, not a per-call input).
-2. Different `client_id` → different VSID (unlinkable across RPs).
-3. VSID must be derived from an **identity DID** only, never from an account DID, an
-   alias, a display name or a username (see [ADR-002](./decisions/002-accounts-and-identities.md)).
-   *Implementation status:* no token is issued today; the account has a server-side session,
-   not a token ([ADR-005](./decisions/005-account-sessions-and-rp-tokens.md)). With
-   [ADR-007](./decisions/007-identifiers.md) the input is the identity's UUID.
-4. VSID must **never** be derived from a username directly.
-5. Rotating `MASTER_KEY` re-encrypts the VSID secret and changes no VSID —
-   see the rotation runbook in [`operations.md`](./operations.md). The VSID
-   still depends on the server's domain, through the identity DID.
+1. Same `(identity, client_id)` → same VSID (deterministic; the VSID secret is constant per
+   deployment, not a per-call input).
+2. Different `client_id` → different VSID (unlinkable across relying parties).
+3. Different identity → different VSID at the same relying party, including two identities
+   of one account.
+4. The input is an identity's UUID, never an account, a username, a display name or a DID.
+   Renaming anything, moving the server to another domain or rotating `MASTER_KEY` changes
+   no VSID (see the rotation runbook in [`operations.md`](./operations.md)).
 
-*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `compute_vsid()`, `derive_vsid_salt()` (upgrade path only);
+*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `identity_vsid()`, `derive_vsid_salt()` (upgrade path only), tests `deterministic`, `different_client_different_vsid`, `different_identity_different_vsid`, `client_id_is_length_prefixed`, `known_answer`;
 [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `vsid_secret()`
 
 ---
@@ -83,8 +79,8 @@ IDs.
 Client                          brigid-api                      brigid-store
   │                                 │                               │
   │─── POST /auth/register/begin ──▶│                               │
-  │    { username: "user@host" }     │                               │
-  │                                 │ validate username format      │
+  │    { }                           │                               │
+  │                                 │ generate a username           │
   │                                 │ generate challenge (random)   │
   │                                 │ store challenge (encrypted)──▶│
   │◀── 200 { challenge, rp, ... } ──│                               │
@@ -98,8 +94,12 @@ Client                          brigid-api                      brigid-store
   │                                 │ verify RP ID == server domain │
   │                                 │ verify signature              │
   │                                 │ store credential (encrypted)─▶│
-  │◀── 200 OK ──────────────────────│                               │
+  │◀── 204, Set-Cookie (session) ───│                               │
 ```
+
+Sign-up asks for nothing but the passkey: the server generates the account's username,
+which the person never types ([ADR-003](./decisions/003-usernames-and-quick-signup.md)),
+and the account exists only once the passkey is stored. Registration opens the session.
 
 ### Security checks (registration)
 - RP ID must exactly match the server domain (no wildcard).
@@ -190,7 +190,7 @@ answers `401`.
 
 The ID token deliberately omits the user's root DID (or any other stable,
 cross-RP user identifier). `sub` is a VSID derived from
-`(did_root, client_id, salt)`, which makes it pairwise per relying party.
+`(identity, client_id)` and the VSID secret, which makes it pairwise per relying party.
 Including a stable DID in any claim would let two colluding RPs correlate
 the same user across `aud` values and undermine the pairwise-subject
 privacy guarantee. `iss` and `server` identify the **issuer**, not the

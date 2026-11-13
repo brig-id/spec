@@ -12,7 +12,9 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 - **Passkey-only authentication** (WebAuthn / FIDO2 — no passwords)
 - **OIDC ID Token issuance** with VSID as the stable `sub` claim
-- **Zero-trust storage** — all sensitive data encrypted before reaching SQLite
+- **Encrypted storage** — sensitive fields are encrypted before reaching SQLite, with keys the
+  server derives from its master key (this protects a copy of the database, not against the
+  server's operator: see §5, "Decided, not built yet")
 - **Post-quantum readiness** — hybrid classical+PQC key pairs available
 
 ---
@@ -167,12 +169,11 @@ brig·id is a self-hosted identity provider (IdP) offering:
 
 These invariants are enforced in code and must be verified by auditors:
 
-1. **VSID stability:** same `(did_root, client_id)` → same VSID (the VSID secret is a single deployment-wide value, stored encrypted, not a per-call input); different `client_id` → different VSID.
-   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `derive_vsid_salt()`, `compute_vsid()`
-   - *Verify:* `vsid_is_stable` and `vsid_non_correlable_across_clients` tests in the same file.
-2. **VSID isolation:** VSID must be derived from an identity DID only, never from an account DID, an alias, a display name or a username ([ADR-002](./decisions/002-accounts-and-identities.md)).
-   - *Reference:* [`brigid-identity/src/root_id.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/root_id.rs) — `RootId::parse()` validates format.
-   - *Verify:* `vsid_never_derived_from_alias` test asserts `compute_vsid` rejects non-`did:web:` inputs with an error.
+1. **VSID stability:** same `(identity, client_id)` → same VSID (the VSID secret is a single deployment-wide value, stored encrypted, not a per-call input); different `client_id` → different VSID.
+   - *Reference:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `identity_vsid()`
+   - *Verify:* tests `deterministic`, `different_client_different_vsid`, `known_answer` in the same file.
+2. **VSID isolation:** the VSID is derived from an identity's UUID only, never from an account, a username, a display name or a DID ([ADR-007](./decisions/007-identifiers.md)); two identities of one account have different VSIDs at the same relying party.
+   - *Verify:* test `different_identity_different_vsid`; `identity_vsid()` takes a `Uuid`, so no other input can be passed.
 3. **Zero raw secrets in storage:** every *sensitive* field written by `brigid-store` (credential bodies, signing-key seeds, user-supplied identifiers, etc.) MUST be encrypted with AES-256-GCM via `brigid-crypto` before the `INSERT` reaches SQLite. Non-secret *operational metadata* — table primary keys, foreign keys, `expires_at` timestamps, schema-migration markers, and the session table's token **hashes** (SHA3-256 of a 256-bit random token: a hash is not a usable session) — may be stored in plaintext so the database can be queried and pruned. What MUST never appear in plaintext is any value that would reveal a credential, a private key, a user-supplied identifier, or the contents of an active session.
    - *Reference:* [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — see the `encrypt_field` / `decrypt_field` helpers and their call sites in every public store function.
    - *Verify:* `dump_contains_no_plaintext` integration test in `brigid-store` — it asserts the secret payloads do not appear in a raw `.dump`, but tolerates plaintext metadata columns by construction.
@@ -183,6 +184,26 @@ These invariants are enforced in code and must be verified by auditors:
    relying-party flow exists, are for relying parties, single audience, five-minute lifetime.
    - *Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs) — `AccountSession`, `require_same_origin`.
 6. **Key zeroization:** `OidcSigningKey` inner `SigningKey` (ed25519-dalek) implements `ZeroizeOnDrop`.
+
+---
+
+### Decided, not built yet
+
+These hold by decision and are not enforced by the code described here. Each joins the list
+above, with its reference and its test, when it is implemented.
+
+- **No link across servers:** a server holds no reference to an account or an identity of
+  another server ([ADR-021](./decisions/021-sharing-between-servers.md)).
+- **Labels never leave:** an identity's name and logo are never sent to a relying party,
+  which receives a VSID and the attributes the person accepted to share
+  ([ADR-022](./decisions/022-identity-attributes-and-consent.md)).
+- **What describes a person is unreadable to the operator:** labels and attributes are
+  encrypted end to end with a key only a passkey gives, and only passkeys that can give one
+  are accepted ([ADR-023](./decisions/023-end-to-end-encryption.md), with what it does not
+  protect against).
+- **No way in for an administrator:** no administrator can give access back to an account,
+  and a recovery code is mandatory
+  ([ADR-018](./decisions/018-app-structure.md), [ADR-024](./decisions/024-account-lifecycle.md)).
 
 ---
 

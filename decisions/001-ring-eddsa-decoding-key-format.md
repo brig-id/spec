@@ -1,6 +1,8 @@
 # ADR-001 — `jsonwebtoken` + ring: EdDSA DecodingKey expects raw 32-byte public key
 
-**Status:** Accepted
+**Status:** Deprecated (2026-11-13). `brigid-oidc` no longer validates tokens: brig·id's API
+accepts none ([ADR-005](005-account-sessions-and-rp-tokens.md)), and relying parties verify
+them with their own libraries. The note below matters again only if validation comes back.
 
 ## Context
 
