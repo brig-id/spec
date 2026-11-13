@@ -48,8 +48,8 @@ own identity provider instead of using "Sign in with Google".
 
 Today the server exists (Rust, passkey accounts, identities, encrypted storage) but cannot
 yet sign people in to other sites. This project delivers version 1: the standard OpenID
-Connect flow for websites, tested by the OpenID Foundation's conformance suite on every
-change; an accessible interface with no third-party dependency; a single executable with
+Connect flow for websites, tested end to end with a demonstration site; an accessible
+interface with no third-party dependency; a single executable with
 built-in TLS; and an independent security audit, with its findings fixed and published.
 
 ## Requested amount
@@ -62,8 +62,8 @@ Rate: EUR `[400]` per day, `[one developer]`. 120 days.
 
 | # | Milestone | Result | Days |
 | --- | --- | --- | --- |
-| 1 | OpenID Connect for websites | Authorization Code flow with PKCE, registered clients, identity selection, RS256 and EdDSA signatures, UserInfo; specification updated | 25 |
-| 2 | Conformance in CI | The OpenID Foundation conformance suite (Basic OP, Config OP) runs on every change, driven through a real passkey ceremony; results published | 10 |
+| 1 | OpenID Connect for websites | Authorization Code flow with PKCE, registered clients (with a secret, or public), identity selection, a per-site identifier as the only thing a site receives; specification updated | 25 |
+| 2 | Demonstration site and end-to-end tests | A small relying party, written with an ordinary OpenID Connect library, signs in through a real passkey ceremony on every change; it doubles as the example for integrators | 10 |
 | 3 | Self-contained, accessible interface | Own design tokens and components (dark and light, WCAG 2.2 AA), free icons and fonts embedded, no CDN and no paid dependency; accessibility checks in CI | 25 |
 | 4 | Administration | First administrator through a one-time setup link, accounts, administrators, registration of websites, sign-up policy | 15 |
 | 5 | One executable | Interface embedded, certificates by ACME, static binaries for x86-64 and arm64, checksums, SBOM and build provenance | 15 |
@@ -72,8 +72,7 @@ Rate: EUR `[400]` per day, `[one developer]`. 120 days.
 | 8 | Security audit | Preparation with the auditors, fixes for every finding, publication of the report | 10 |
 | 9 | Accessibility audit | Fixes for the findings | 5 |
 
-Expenses: none. `[Or: OpenID Foundation membership and certification fee, about EUR 700, if
-certification is included.]`
+Expenses: none.
 
 ## Comparison with existing or historical efforts (4,000 characters)
 
@@ -113,11 +112,10 @@ passkeys make it practical now.]`
 
 ## Technical challenges (4,000 characters)
 
-- **A standard flow with a non-standard subject.** Websites must be able to use any OpenID
-  Connect library. The conformance suite requires things the project had chosen not to do
-  (RSA signatures, client secrets, a UserInfo endpoint, requests without PKCE). Each must be
-  met without weakening the model, and the suite must pass with a real passkey ceremony in
-  CI, with no test-only way around authentication.
+- **A standard flow with a non-standard subject.** Websites must be able to use an ordinary
+  OpenID Connect library, while receiving nothing but an identifier that is theirs alone.
+  The project keeps choices stricter than the baseline (PKCE for every client, EdDSA
+  signatures only); each has an interoperability cost to measure and document.
 - **Unlinkability that holds.** The identifier a site receives must not let it link two
   identities, including through side channels: claims released, timing, the identity
   selection step, error messages, logs. The specification states the invariants; the audit

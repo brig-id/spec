@@ -32,8 +32,8 @@ The intention was to apply to NLnet's NGI Zero Commons Fund and to OSTIF. Checke
   promises "accessibility scans and security audits". Which services apply "can differ from
   programme to programme": **ask NLnet to confirm that the security audit applies to Restack
   before relying on it.** The proposal asks for it explicitly.
-- The grant funds the work that leads to an auditable v1 (ADR-005 §2, conformance in CI,
-  the self-contained app, the single executable); the audit comes at the end of it.
+- The grant funds the work that leads to an auditable v1 (ADR-005 §2, the self-contained
+  app, the single executable); the audit comes at the end of it.
 - Draft: [`audit/applications/nlnet-restack.md`](../audit/applications/nlnet-restack.md).
 
 ### 2. OSTIF
@@ -67,8 +67,8 @@ Kept for later, after v1 and after the funded paths have answered.
 
 Scope: `crypto` (encryption at rest, key derivation, hybrid primitives), `core` (WebAuthn
 ceremonies, sessions, the relying-party flow, the encrypted store), and the shipped server.
-An audit is requested only once ADR-005 §2 is implemented, the conformance suite runs in CI
-([ADR-008](008-oidc-conformance.md)) and features are frozen for v1.
+An audit is requested only once ADR-005 §2 is implemented ([ADR-008](008-oidc-conformance.md))
+and features are frozen for v1.
 
 ## Consequences
 

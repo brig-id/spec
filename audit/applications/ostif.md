@@ -47,7 +47,7 @@ audited completely, and it is meant to be run by people who cannot audit it them
 | `crypto` | Authenticated encryption of stored fields, key derivation, hybrid post-quantum primitives (X-Wing, composite ML-DSA) |
 | `core` — WebAuthn | Registration and authentication ceremonies, user verification, challenge handling, recovery code |
 | `core` — sessions | Server-side session in a cookie, same-origin enforcement, expiry |
-| `core` — OpenID Connect | Authorization Code flow, PKCE, client registration, token and UserInfo endpoints, signing keys and rotation |
+| `core` — OpenID Connect | Authorization Code flow, PKCE, client registration, the token endpoint, signing keys and rotation |
 | `core` — identifiers | Derivation of the per-site identifier; that two identities cannot be linked by a website or by two colluding websites |
 | `core` — storage | That a copy of the database reveals no secret; master key rotation |
 | `server-leaf` | Configuration, built-in TLS, headers and Content Security Policy, rate limits, the embedded interface |
@@ -62,7 +62,7 @@ Out of scope: the operating system and the network of whoever runs it.
 - Tests, coverage, fuzz targets run in CI (`crypto`, `core`), `cargo audit`, `cargo deny`,
   SBOM on releases.
 - Known-answer tests for the cryptographic constructions against the IETF drafts' vectors.
-- For v1: the OpenID Foundation conformance suite in CI.
+- For v1: end-to-end tests with a demonstration relying party and a real passkey ceremony.
 - An internal review (November 2026) whose findings were fixed. `[Say whether you share its
   report.]`
 - No previous third-party audit.

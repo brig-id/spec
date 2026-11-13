@@ -42,8 +42,8 @@ closer to what `grove` will be than to the new `leaf`.
 ### 4. Order
 
 1. **v1 is `leaf`**: the single executable, with the relying-party flow
-   ([ADR-005](005-account-sessions-and-rp-tokens.md) §2), conformance in CI
-   ([ADR-008](008-oidc-conformance.md)) and the self-contained interface
+   ([ADR-005](005-account-sessions-and-rp-tokens.md) §2,
+   [ADR-008](008-oidc-conformance.md)) and the self-contained interface
    ([ADR-012](012-self-contained-app.md)).
 2. `grove` after v1.
 3. `forest` after `grove`, on demand.
