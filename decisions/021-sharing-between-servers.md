@@ -88,7 +88,7 @@ the person controls:
   server's own interface. No server learns of another. Stored per browser, not synced:
   that is the price of nobody knowing.
 - A personal server holding links to others is a weaker variant (the personal server learns
-  the employer; acceptable on one's own leaf, not on a shared server).
+  the employer; acceptable on one's own seedling, not on a shared server).
 
 "From B I see five" becomes "in my browser I see my two servers". The employer's server
 keeps seeing two.

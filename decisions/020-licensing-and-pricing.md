@@ -1,12 +1,11 @@
-# ADR-020 — Licences and pricing: AGPL with a commercial licence, paid modules kept apart
+# ADR-020 — Licences and pricing: AGPL alone, a registered name, paid services
 
-**Status:** Proposed (2026-11-13). A recommendation, deliberately not a decision: the choice
-is the owner's.
+**Status:** Accepted (2026-11-13, review round 3 with the owner).
 
 ## Context
 
 Everything public is under **LGPL-3.0-or-later**. `server-forest` is private and has no
-licence. The site says `leaf` and `grove` are free and `forest` is commercial.
+licence. The site says the two smaller editions are free and `forest` is commercial.
 
 The intention now:
 
@@ -66,51 +65,72 @@ version to Apache-2.0 or MIT after two years.
   sold is the commercial licence, support and updates, hosting, and the modules of E.
 - A licence does not create revenue. It decides who has to talk to you.
 
-## Recommendation
+## Decision
 
-**B, with a small E.**
+**AGPL alone. No commercial licence, ever.**
 
-- **`core`, `app` and the three servers under AGPL-3.0-or-later.** One licence for the three
-  servers, public, `forest` included. `core` must follow, or the servers' licence protects
+- **`core`, `app` and the three servers: AGPL-3.0-or-later.** One licence for the three
+  servers, public, `forest` included. `core` follows, or the servers' licence protects
   nothing.
 - **`crypto` stays LGPL-3.0-or-later**: a thin library over public primitives gains from
   being reused and reviewed, and holds no business value.
-- **A commercial licence** for the same code, for organisations that cannot use the AGPL,
-  available for any edition and priced by edition. This is "a paid version for every
-  edition" (intention 1), honestly named.
-- **Paid, per edition**: support and guaranteed updates; the commercial licence; hosting.
-- **Edition features (intention 3)**: nothing is gated inside AGPL code. A feature is either
-  in the open product for everyone (customising the sign-in page, in the three), or a
-  **separately licensed module** (replacing the whole interface, white-label). Rule: **no
-  security feature is ever paid**. Everything that touches authentication, identities,
-  tokens and cryptography is open and in the audit's scope.
-- **A contributor agreement from the first outside contribution**, as a licence grant, not
-  an assignment, with a public commitment that what is published under the AGPL stays under
-  it. The FSFE's Fiduciary Licence Agreement is the model to start from.
+- **No dual licensing.** The project never sells an exception to the AGPL. Nobody, the owner
+  included, can take the code closed: for a product that says "you do not have to trust
+  us", this is the strongest form of the promise. What is given up: the organisations that
+  forbid AGPL software by policy and would have bought other terms.
+- **Contributions under a Developer Certificate of Origin**, nothing to sign: a contributor
+  certifies the right to contribute, and contributes under the project's licence. With no
+  other licence to grant, no contributor agreement is needed.
+- **The name is registered.** "brig·id" (name and mark) is filed as a trademark before
+  step 2 of v1 ([ADR-014](014-three-products.md)), and a short policy says what others may
+  do with it: a fork or a host may say truthfully that it is based on brig·id or compatible
+  with it; it may not call itself brig·id or suggest it is the project. A trademark does not
+  stop anyone from running the software for free, nor a fork under another name; with the
+  AGPL, which makes whoever offers a modified version as a service publish the changes, it
+  is the realistic protection.
 
-Why not D, although it is what was asked: brig·id's argument is "you do not have to trust
-us", and the right to run, change and leave is what makes the sentence true. And the audit
-that the project needs most is funded by organisations that fund free software only.
+**What is paid, for any edition:**
 
-If the requirement remains "a company must sign before using it", D is the honest way:
-PolyForm Small Business, the words "source-available" on the site, and ADR-010 rewritten
-without NLnet and OSTIF.
+- support and guaranteed updates;
+- hosting by the project;
+- **modules that are separate programs**, talking to a server through its interfaces: a
+  replacement interface, white-label. A paid module cannot be a part linked into the server:
+  the server contains contributors' code, which the project has no right to close.
 
-## Consequences if B is accepted
+**No security feature is ever paid.** Everything that touches authentication, identities,
+tokens and cryptography is free software and in the audit's scope. Nothing is gated inside
+the AGPL code, and no edition has a ceiling ([ADR-019](019-editions.md) §4).
 
-- **Relicensing is possible today by the owner alone**: the history has one human author
-  (and automated dependency updates). It gets harder with each outside contributor: decide
-  before the first one, and before the NLnet proposal, which asks for the licence. Note:
-  part of the code was written with AI assistance, whose copyright status is unsettled in
-  several jurisdictions; this does not prevent choosing a licence, it may weaken enforcing
-  one.
-- `core`, `app`, `server-*`: `LICENSE`, headers, `Cargo.toml` and `package.json`; released
-  versions keep the licence they were published under.
-- The site: the editions are no longer "free" against "paid". Each edition is free
-  software; support, the commercial licence and hosting are paid. "Free for people" stays
-  true (it becomes true for everyone).
-- The backlog items "study relicensing from LGPL to AGPL" and "decide server-forest's
-  licence" are closed by the decision.
+**The change of licence happens now**, at step 1 of v1, together with the rename of the
+smallest edition, which touches the same files.
+
+## Why not the other options
+
+- **D (non-commercial)** is what was first asked for: a company must sign to use the
+  software. It costs the open-source status, so the funded audit
+  ([ADR-010](010-third-party-audit-funding.md)), distribution packaging, and part of what
+  the site promises; and "commercial" has to be defined case by case.
+- **C (non-compete)** does not make companies pay and is not free software either.
+- **B with a commercial licence** keeps one more thing to sell, at the price of a
+  contributor agreement and of a standing possibility that the code be offered on other
+  terms. The review chose the simpler promise.
+
+## Consequences
+
+- **Relicensing is done by the owner alone**: the history has one human author (and
+  automated dependency updates). Released versions keep the licence they were published
+  under. Part of the code was written with AI assistance, whose copyright status is
+  unsettled in several jurisdictions; this does not prevent choosing a licence, it may
+  weaken enforcing one.
+- `core`, `app`, the servers: `LICENSE`, the manifests, and a `CONTRIBUTING` file stating the
+  Developer Certificate of Origin, checked on pull requests.
+- A trademark policy is published with the organisation's files; filing the mark is an
+  owner action.
+- The site: every edition is free software. Support, hosting and separate modules are paid.
+  "Free for people" stays true, for everyone.
+- The NLnet proposal names the AGPL.
+- The earlier questions "study relicensing from LGPL to AGPL" and "decide server-forest's
+  licence" are closed.
 
 ## References
 
@@ -121,6 +141,7 @@ without NLnet and OSTIF.
   <https://mariadb.com/bsl11/>; Elastic License 2.0: <https://www.elastic.co/licensing/elastic-license>
 - PolyForm licences: <https://polyformproject.org/licenses>
 - Zitadel's move to AGPL: <https://zitadel.com/blog/apache-to-agpl>
-- FSFE Fiduciary Licence Agreement: <https://fsfe.org/activities/fla/>
+- Developer Certificate of Origin: <https://developercertificate.org>
+- EU trade mark regulation 2017/1001, article 14 (limits of the rights: honest referential use)
 - [ADR-010](010-third-party-audit-funding.md), [ADR-014](014-three-products.md),
   [ADR-019](019-editions.md)
