@@ -35,20 +35,24 @@ Attributes are optional, typed, and stored encrypted like the other fields of an
 They belong to one identity: nothing is copied from one identity to another, and the
 account has none.
 
-### 1b. Two words in place of "connector"
+### 1b. Two directions in place of "connector"
 
-"Connector" had been used for two different links of an identity. They are named apart, in
-the interface and in the documents:
+"Connector" had been used for every link of an identity with the outside. The word is
+dropped. Links are sorted by their **direction**, and each direction holds categories, to
+which others can be added:
 
-| | **Application** | **Service** |
+| | **Used by** (*Utilisée par*) | **Connected to** (*Reliée à*) |
 | --- | --- | --- |
-| What it is | What an identity signs in to through brig·id: a website, a mobile or desktop application | An outside service the identity is connected to (a code forge, a task manager, a mail relay…), so that brig·id can hand an authorised application what it needs there, possibly no more than a token |
-| brig·id is | The provider: the application trusts it | The client: it holds an access the service granted, or operates the service |
-| Exists | With the relying-party flow | Not designed |
+| What it holds | What uses the identity | What the identity uses |
+| Categories so far | **Applications**: third-party websites, and the person's own applications (web, mobile, desktop). **Sessions**: where the identity is signed in at the moment | **Services**: an outside service the identity is connected to (a code forge, a task manager, a mail relay…), for which brig·id holds an access or operates the service. **Providers**, and others, when a need appears |
+| brig·id is | The provider: what uses the identity trusts it | The client, or the operator of the service |
+| Exists | Applications, with the relying-party flow | Not designed |
 
-Other words may join these two later. **No service is part of v1.** Each one will need its
-own record: what the server stores, who may obtain what, and how the person sees and
-withdraws it.
+These two headings are the ones of an identity's page, in English and in French. The
+specification documents keep *relying party* for an application.
+
+**Nothing under "Connected to" is part of v1.** Each service will need its own record: what
+the server stores, who may obtain what, and how the person sees and withdraws it.
 
 ### 2. The attributes of v1, and how an application asks
 
