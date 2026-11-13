@@ -35,7 +35,7 @@ private registry, no token, no paid licence.
 | --- | --- |
 | Web Awesome Pro | [ADR-016](016-design-system.md) |
 | Font Awesome | [ADR-015](015-icons.md) |
-| Inter from a CDN | [ADR-017](017-typography.md), fonts embedded |
+| Inter from a CDN | [ADR-017](017-typography.md): Geist and Geist Mono, embedded |
 | Unsplash API | a few free images embedded in the app (§3) |
 
 ### 3. Embedded background images
@@ -53,15 +53,15 @@ The set, chosen on 2026-11-13 from Wikimedia Commons:
 | 2 | [Magic light (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Magic_light_%28Unsplash%29.jpg) | Ricardo Gomez Angel | CC0 1.0 | Dark, landscape: light through a forest |
 | 3 | [Forest-ray-of-sunshine-sunbeams (23957956609).jpg](https://commons.wikimedia.org/wiki/File:Forest-ray-of-sunshine-sunbeams_%2823957956609%29.jpg) | Pixel.la Free Stock Photos | CC0 1.0 | Dark, portrait: phones |
 | 4 | [Aurora borealis over Eielson Air Force Base, Alaska.jpg](https://commons.wikimedia.org/wiki/File:Aurora_borealis_over_Eielson_Air_Force_Base,_Alaska.jpg) | U.S. Air Force, Senior Airman Joshua Strang | Public domain (U.S. federal government work) | Dark, landscape |
-| 5 | [Dingle cliff (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Dingle_cliff_%28Unsplash%29.jpg) | Ian Schneider | CC0 1.0 | Light theme: the Irish coast |
+| 5 | [Dingle cliff (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Dingle_cliff_%28Unsplash%29.jpg) | Ian Schneider | CC0 1.0 | Light theme (step 2 of v1): the Irish coast |
 
 - Images 2 and 5 were published on Unsplash in March 2017 and October 2015, while its licence
   was CC0 (it changed in June 2017), and imported to Commons with that licence, which cannot
   be withdrawn. Each file page is checked again when the file is added to the repository.
 - Weight: AVIF with a JPEG fallback, two widths (960 and 1920 px), at most 150 KB per image
   at the larger width, **1 MB for the whole set**.
-- Which image is shown is decided without any network call: the default one, or the one the
-  server's administrator picked ([ADR-018](018-app-structure.md)), or none.
+- Which image is shown is decided without any network call. In v1 it is the default one;
+  letting a server's administrator pick comes after v1 ([ADR-016](016-design-system.md)).
 
 ### 4. Enforcement
 

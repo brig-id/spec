@@ -1,7 +1,6 @@
-# ADR-016 — Design system: our own tokens and components on native HTML, headless primitives where needed
+# ADR-016 — Design system: our own tokens and components on native HTML, on Qwik 2
 
-**Status:** Proposed (2026-11-13). Recommendation: a small in-house system, no component
-library.
+**Status:** Accepted (2026-11-13, review round 2 with the owner).
 
 ## Context
 
@@ -38,25 +37,36 @@ its successor `@qds.dev/ui` 0.15 (June 2026) targets Qwik 2 only. Both are pre-1
 | E. Classless or light CSS (Pico, Open Props) | MIT | Tokens (Open Props) or a fixed look (Pico) | Native semantics | Native | Open Props is a token source, not a system; Pico is hard to rebrand deeply |
 | F. Shoelace 2 | MIT | Tokens | Good | Web components, as B | In maintenance; Web Awesome is its successor |
 
-## Recommendation
+## Decision
 
-**A, with C for the few widgets the platform does not give.**
+**A: our own system, and no library at all.** daisyUI (CSS components on Tailwind, MIT, very
+active) was looked at again in the review as the best-looking free alternative, and set
+aside for the same reason as the others: it adds a build pipeline and a vocabulary for six
+components.
 
 - **The sign-in page is the most sensitive page of the product.** Every dependency loaded
-  there is code that can read the page. With A it needs no component library at all:
-  a form, a button, a script for the passkey ceremony.
-- **Six components do not justify a library**, and none of the libraries brings the theming
-  model wanted (below): we would write the tokens anyway.
-- **The platform now covers most of what libraries were for**: `dialog`, the Popover API,
-  `details`, `:focus-visible`, `color-scheme`, `light-dark()`, container queries, `oklch()`.
-  Native elements bring their keyboard and screen-reader behaviour with them.
-- **Headless primitives only where a correct pattern is hard to write** (combobox, tabs,
-  toast, menu), imported one at a time, never on the sign-in page: `@qwik-ui/headless` while
-  on Qwik 1, `@qds.dev/ui` after the move to Qwik 2.
+  there is code that can read the page. It needs no component library: a form, a button, a
+  script for the passkey ceremony.
+- **The platform covers what libraries were for**: `dialog`, the Popover API, `details`,
+  `:focus-visible`, `color-scheme`, `light-dark()`, container queries, `oklch()`. Native
+  elements bring their keyboard and screen-reader behaviour with them.
+- A widget the platform does not give (combobox, tabs, toast) is written when a page needs
+  it, following the WAI-ARIA pattern, with its tests.
 
-**Qwik version:** stay on Qwik 1 for v1. Move to Qwik 2 after its stable release, as its own
-piece of work. A thin in-house layer is the cheapest thing to carry across that move; a
-component library is the most expensive.
+**Qwik 2, now.** The whole interface is rewritten for step 1 of v1
+([ADR-014](014-three-products.md)); writing it on Qwik 1 would mean migrating it soon after.
+Qwik 2 is a release candidate, and it brings the build tool that once broke this app's
+static generation. The first task of the rewrite is therefore to prove one page end to end
+(static build, CSP hash manifest, passkey ceremony in the end-to-end tests); if that fails,
+this point comes back to the owner before anything else is written.
+
+**Dark first.** Step 1 ships the dark theme only. The light theme is designed for step 2,
+selected by the system preference and overridable by the user. Tokens are named for both
+from the start, so that adding the light values touches no component.
+
+**English and French from step 1**, chosen from the browser's languages, with a switch.
+Every text lives outside the components; a page is not done until both languages are
+written.
 
 ### Tokens
 
@@ -68,11 +78,10 @@ Three levels, all CSS custom properties:
    only.
 3. **Component**, sparingly, when a component needs its own handle.
 
-Dark is the default; light is a second set of semantic values, selected by the system
-preference (`prefers-color-scheme`) and overridable by the user. Both are designed, neither
-is derived by inversion.
+Dark is the default; light is a second set of semantic values, designed, not derived by
+inversion.
 
-What each roadmap item overrides:
+What each roadmap item overrides (all three are **after v1**):
 
 | | Overrides | How |
 | --- | --- | --- |
@@ -82,8 +91,8 @@ What each roadmap item overrides:
 
 ### Accessibility: how AA is held, not hoped for
 
-- Automated checks (axe) run in the end-to-end tests on every page, in both themes; a
-  violation fails CI.
+- Automated checks (axe) run in the end-to-end tests on every page, in every theme and both
+  languages; a violation fails CI.
 - A manual pass per release with keyboard only and with one screen reader.
 - WCAG 2.2 additions built into the components: visible focus not hidden by sticky elements
   (2.4.11), targets of 24 px at least (2.5.8), nothing to remember or transcribe to sign in
@@ -94,12 +103,13 @@ What each roadmap item overrides:
 
 ## Consequences
 
-- `app`: tokens, base styles, six components, the two themes; Web Awesome and its loaders
-  removed. This is the main piece of the new interface for v1.
-- The site's visual language (dark, the prism, its type) is the starting point, so site and
+- `app`: the move to Qwik 2, tokens, base styles, the components, the dark theme, the two
+  languages; Web Awesome and its loaders removed. This is the main piece of step 1.
+- The public site's visual language (dark, the prism) is the starting point, so site and
   product look like one thing.
 - A cost accepted: accessibility of our components is ours to test, with no upstream to
-  lean on.
+  lean on. Another: a release candidate under the product's most sensitive page, bounded by
+  the proof described above.
 
 ## References
 
