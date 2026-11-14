@@ -8,7 +8,7 @@
 
 ## 1. Nothing external
 
-**Status:** decided — step 1. Today the interface depends on third parties (§2).
+**Status:** built.
 
 At run time the interface loads **nothing from any origin but the server that serves it**:
 no CDN, font host, icon kit, image API, analytics, captcha or map. This holds for the three
@@ -30,9 +30,11 @@ Enforcement:
 
 ---
 
-## 2. What is replaced
+## 2. What was replaced
 
-| Built today | Problem | Replaced by |
+**Status:** built.
+
+| Until step 1 | Problem | Replaced by |
 | --- | --- | --- |
 | Web Awesome Pro, from a private registry | A token is needed to build | Our own components (§3) |
 | Font Awesome icons | Fetched by the component library | Phosphor, inlined (§4) |
@@ -61,13 +63,15 @@ The set, chosen on 2026-11-13 from Wikimedia Commons:
   cannot be withdrawn. Each file page is checked again when the file is added.
 - Weight: AVIF with a JPEG fallback, two widths (960 and 1920 px), at most 150 KB per image
   at the larger width, **1 MB for the whole set**.
-- Which image is shown is decided without any network call. In v1 it is the default one.
+- Which image is shown is decided without any network call. In v1 it is the default one,
+  and **only that one is shipped** (8 KB in AVIF at 1920 px); the others join the build when
+  something shows them.
 
 ---
 
 ## 3. Design system: our own, on native HTML
 
-**Status:** decided — step 1 for the dark theme and the two languages; step 2 for the light
+**Status:** built for the dark theme and the two languages; decided — step 2 for the light
 theme.
 
 **No component library.** The interface uses six components (page layout, card, input,
@@ -87,9 +91,8 @@ button, callout, icon). They are written on native elements, with our own styles
 
 **Qwik 2.** The interface is rewritten on Qwik 2, a release candidate at the time of the
 decision, whose build tool once broke this app's static generation. The first task of the
-rewrite is therefore to prove one page end to end (static build, script-hash list, passkey
-ceremony in the end-to-end tests). If that fails, the choice is reconsidered before
-anything else is written.
+rewrite was therefore to prove one page end to end (static build, script-hash list, passkey
+ceremony in the end-to-end tests) before anything else was written. It held.
 
 ### Tokens
 
@@ -103,9 +106,15 @@ person. Tokens are named for both from the start, so that adding it touches no c
 
 ### Languages
 
-**English and French from step 1**, chosen from the browser's languages, with a switch that
-is remembered. Every text lives outside the components; a page is not done until both
-languages are written.
+**English and French**, chosen from the browser's languages, with a switch that is
+remembered. Every text lives outside the components; a page is not done until both
+languages are written, and a test fails on a text left in a component or written in one
+language only.
+
+The pages are static files, so the server cannot choose a language. Both languages are in
+each page and the stylesheet shows the one named by the document's `lang`, which a script in
+the head sets before the first paint. That script is fixed at build time and allowed by its
+hash, like the framework's own.
 
 ### Accessibility
 
@@ -122,7 +131,7 @@ WCAG 2.2 AA, held by tests and not by intention:
 
 ## 4. Icons: Phosphor
 
-**Status:** decided — step 1.
+**Status:** built.
 
 Phosphor (MIT): 1,527 icons in six weights. It is the set of the public site, so the site
 and the product share one icon language. *Regular* serves the interface, *duotone* the
@@ -165,9 +174,6 @@ names, and a reference in the old form is refused.
 Brands (`icon:brands:…`): `github`, `gitlab`, `discord`, `mastodon`, `linkedin` →
 `github-logo`, `gitlab-logo`, `discord-logo`, `mastodon-logo`, `linkedin-logo`.
 
-Brands (`icon:brands:…`): `github`, `gitlab`, `discord`, `mastodon`, `linkedin` →
-`github-logo`, `gitlab-logo`, `discord-logo`, `mastodon-logo`, `linkedin-logo`.
-
 ≈ marks an approximation: Phosphor has no direct equivalent, so the picture changes for
 identities that use it. Brand logos remain trademarks of their owners whatever the set's
 licence; the picker keeps them few.
@@ -176,7 +182,7 @@ licence; the picker keeps them few.
 
 ## 5. Typography: Geist and Geist Mono
 
-**Status:** decided — step 1.
+**Status:** built.
 
 **Geist for everything, Geist Mono for what a person compares character by character**:
 recovery codes, server names, identifiers. Telling `l`, `I` and `1`, or `O` and `0`, apart
@@ -193,7 +199,7 @@ together, already the public site's. No separate face for titles.
 
 ## 6. Three parts
 
-**Status:** sign-in and account are built and rebuilt at step 1; administration is decided —
+**Status:** sign-in and account are built; administration is decided —
 step 2.
 
 The interface has three parts, called what they are, in the code as in the documents:

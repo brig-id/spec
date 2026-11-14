@@ -48,9 +48,8 @@ by what brig·id gives out ([`protocol.md`](protocol.md) §2).
 
 - The **name** is a display name: not a way to sign in, and not unique.
 - The **icon** is a reference into the icon library of the interface, stored as text:
-  `icon:<style>:<name>`. The server checks its shape only. *Decided — step 1:* references
-  take the form `icon:ph:<name>` and the existing ones are converted once
-  ([`interface.md`](interface.md) §4).
+  `icon:ph:<name>`, the name of an icon of the Phosphor set
+  ([`interface.md`](interface.md) §4). The server checks its shape only.
 - An identity has no username to sign in with, and no DID.
 - **Templates** only pre-fill a label when an identity is created. An identity does not
   remember its template, and a template carries no security meaning.
@@ -112,7 +111,7 @@ of the same mailbox, `name+work@…`, protects little). It lets the person decid
 
 | Step of v1 | An application receives |
 | --- | --- |
-| 1 | **The identifier only**: `sub`, the VSID of the chosen identity for that application. *In review (core#92)* |
+| 1 | **The identifier only**: `sub`, the VSID of the chosen identity for that application. *Built* |
 | 2 | The identifier, and the attributes the person accepted to share (§5). *Decided* |
 
 An application is **registered** on a server by its administrator: a name shown to people,
@@ -125,8 +124,7 @@ more than its registration allows is refused.
 
 ## 5. The linking page
 
-**Status:** step 1, the choice of the identity, *in review* (app#56). Step 2, attributes,
-*decided*.
+**Status:** step 1, the choice of the identity, *built*. Step 2, attributes, *decided*.
 
 When an application sends a person to brig·id, one page links an identity to it.
 
@@ -158,8 +156,9 @@ When an application sends a person to brig·id, one page links an identity to it
 Sign-up asks for nothing but a passkey: no form, no username to invent. The account exists
 only once the passkey is stored, and the session is opened by the same ceremony.
 
-*Decided — step 1:* a server setting **closes sign-up**; the project's own server needs it
-before it has any administration. *Decided — step 2:* the administrator's sign-up policy
+A server setting **closes sign-up** (`security.signup_open`): the creation of accounts is
+refused, sign-in and recovery are untouched, and the interface says so instead of offering
+it. The project's own server needs it before it has any administration. *Decided — step 2:* the administrator's sign-up policy
 (§7).
 
 ### Onboarding
