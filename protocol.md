@@ -195,8 +195,10 @@ the account always comes from the session.
 
 ## 6. The Sign-in of Relying Parties
 
-**Status:** in review (core#92, server-leaf#79, app#56) for everything in this section not
-marked otherwise. On `main` today, no endpoint issues a token.
+**Status:** built, for everything in this section not marked otherwise. *Verify:* the
+end-to-end suite of the demonstration site ([`brig-id/demo`](https://github.com/brig-id/demo)),
+which signs in through a real server with an ordinary OpenID Connect library, as a
+confidential and as a public client.
 
 A relying party obtains an ID token for an **identity**, never for the account, through the
 OpenID Connect Authorization Code flow.
@@ -335,7 +337,7 @@ that proves, sent to the server, and a part that decrypts, never sent
 
 ### `GET /.well-known/openid-configuration`
 
-**Status:** in review (core#92). The endpoints of §6, `response_types_supported: ["code"]`,
+**Status:** built. The endpoints of §6, `response_types_supported: ["code"]`,
 `subject_types_supported: ["pairwise"]`, `id_token_signing_alg_values_supported: ["EdDSA"]`,
 `scopes_supported: ["openid"]`, `code_challenge_methods_supported: ["S256"]`. It, the JWKS
 and the token endpoint can be read from any origin: none of them depends on a cookie.
@@ -362,8 +364,12 @@ a relying party verifies it with the key of that name.
 }
 ```
 
-### `GET /.well-known/did.json`
+### `GET /auth/server`
 
-**Status:** built; its removal is decided — step 1. The document repeats the key that the
-JWKS publishes, and nothing reads it. A relying party finds a server through the two
-documents above.
+**Status:** built. What differs from one server to another and the interface needs to know
+before anyone is signed in: `{ "sign_up": true | false }`, whether this server accepts new
+accounts ([`model.md`](model.md) §6). Same origin only.
+
+The server publishes no DID document: `/.well-known/did.json` repeated the key that the
+JWKS publishes and nothing read it, so it was removed. A relying party finds a server
+through the two documents above.

@@ -25,7 +25,7 @@ v1 ships two products, seedling and grove, and the design of the third.
 
 ## 2. Three editions, one model
 
-**Status:** decided. Today one server exists, published under the name `leaf` (§6).
+**Status:** decided. Today one server exists: seedling.
 
 seedling, grove and forest are three products, each with its repository, its releases and
 its documentation. An operator chooses one; going from one to another is a migration, not a
@@ -166,7 +166,7 @@ when grove exists, and a forest when forest does.
 
 ## 6. Names
 
-**Status:** decided. The rename of the smallest edition is for step 1.
+**Status:** built.
 
 | Edition | Name | Was |
 | --- | --- | --- |
@@ -180,16 +180,18 @@ Directory; it names something close, which is acceptable, and these documents ne
 word as a common noun. They are edition names, always used with the brand, never as marks of
 their own.
 
-Until the rename lands, the repository, the binary, the published image and the as-built
-sections of these documents say `leaf`. "leaf" may later name any server of a brig·id
-network ([`model.md`](model.md) §8); nothing is decided on that.
+The repository, the binary, the published image and these documents say `seedling`; the
+three editions read their settings under one prefix, `BRIGID_…`. "leaf" may later name any
+server of a brig·id network ([`model.md`](model.md) §8); nothing is decided on that. The
+project's own machine was named `leaf-1` before the change and keeps that name: it names a
+machine, not the edition.
 
 ---
 
 ## 7. Licence, and what is paid
 
-**Status:** decided. The change of licence is for step 1; today everything public is under
-LGPL-3.0-or-later.
+**Status:** built for the licences; the trademark and its policy are decided — step 2.
+Versions released before the change keep the licence they were published under.
 
 - **The servers, the shared core and the interface: AGPL-3.0-or-later.** One licence for the
   three servers, all public. The core follows, or the servers' licence would protect

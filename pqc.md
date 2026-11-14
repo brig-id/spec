@@ -106,7 +106,7 @@ Using hybrids ensures:
 ### Phase C — Key rotation and agility (planned)
 - [ ] Multiple signing keys in `JwkSet` (one classical, one hybrid)
 - [ ] Token validation accepts both
-- [ ] Configurable preference order in `leaf.toml`
+- [ ] Configurable preference order in `seedling.toml`
 
 ---
 

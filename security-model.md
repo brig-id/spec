@@ -76,12 +76,12 @@ brig·id is a self-hosted identity provider:
 ## 4. Attack Surfaces
 
 ### 4.1 Transport layer
-- **Reference deployment:** Caddy terminates TLS in front of `leaf`, which
+- **Reference deployment:** Caddy terminates TLS in front of `seedling`, which
   listens on plain HTTP inside the container network
-  (`server-leaf/deploy/compose.yaml`). The accepted TLS versions are Caddy's
+  (`server-seedling/deploy/compose.yaml`). The accepted TLS versions are Caddy's
   defaults: TLS 1.2 and 1.3.
 - **Built-in TLS (optional):** when `tls_cert`/`tls_key` are configured,
-  `leaf` terminates TLS itself via
+  `seedling` terminates TLS itself via
   `axum_server::tls_rustls::RustlsConfig::from_pem_file()`, with rustls'
   default protocol versions: TLS 1.2 and 1.3. The minimum is **TLS 1.2**, not
   1.3: nothing restricts the versions (no
@@ -90,7 +90,7 @@ brig·id is a self-hosted identity provider:
   transitive dependency of `webauthn-rs-core` (via `webauthn-attestation-ca`)
   for X.509 attestation certificate parsing — not for network connections.
   - *Verify:* run `cargo deny check bans`; the `deny.toml` skip-tree exception for `openssl-sys` documents this path. `cargo tree -i openssl-sys` shows it present; `cargo deny check bans` confirms it is allowed only as an attestation-parsing dep, not for TLS.
-  - *Implementation reference:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/main/src/main.rs) — `RustlsConfig::from_pem_file()` call, `bind_rustls()`.
+  - *Implementation reference:* [`server-seedling/src/main.rs`](https://github.com/brig-id/server-seedling/blob/main/src/main.rs) — `RustlsConfig::from_pem_file()` call, `bind_rustls()`.
 - **HSTS** enforced via `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
 
 ### 4.2 Authentication endpoint (`/auth/*`)
@@ -106,8 +106,7 @@ brig·id is a self-hosted identity provider:
 - **Mitigation:** challenges are single-use and expire (TTL enforced in `brigid-webauthn`).
 
 ### 4.3 Token issuance
-- **Built:** none. No endpoint issues an ID token on `main`.
-- **In review (core#92):** registered clients and exact redirect URIs, Authorization Code with
+- **Built:** registered clients and exact redirect URIs, Authorization Code with
   PKCE (`S256`) for every client, `state` and `nonce`; `sub` = the VSID of the identity the
   person chose, `exp` five minutes, unique `jti`, EdDSA signature with stored, rotatable
   keys; a code is single use and is spent at its first presentation
@@ -140,8 +139,8 @@ brig·id is a self-hosted identity provider:
   design:
   - API responses (JSON only) get the strict policy of
     `brigid-api/src/router.rs` (`build_router()`), with no inline source.
-  - UI responses (`/login`, `/register`, static assets, …) get the policy of
-    [`server-leaf/src/lib.rs`](https://github.com/brig-id/server-leaf/blob/main/src/lib.rs)'s
+  - UI responses (`/`, `/signup/`, static assets, …) get the policy of
+    [`server-seedling/src/lib.rs`](https://github.com/brig-id/server-seedling/blob/main/src/lib.rs)'s
     `apply_ui_fallback()`. It is applied after the static-file fallback is
     attached, because in axum 0.8 a `.layer()` only wraps the routes that
     exist when it is called: the layer inside `build_router()` cannot reach
@@ -150,17 +149,23 @@ brig·id is a self-hosted identity provider:
   inline `<script>`/`<style>` content (its resumability bootstrap), and with
   no per-request rendering step a nonce can't reach it. Instead `app`'s build
   writes `dist/csp-hashes.json`, the `'sha256-…'` source of every inline block,
-  and `server-leaf` puts exactly those in `script-src`/`style-src` of UI
+  and `server-seedling` puts exactly those in `script-src`/`style-src` of UI
   responses ([`brig-id/app#3`](https://github.com/brig-id/app/issues/3),
   [`brig-id/core#20`](https://github.com/brig-id/core/issues/20)). Only
   well-formed hash sources are copied from the manifest. The hashes change from
   one build to the next, so the manifest ships inside each `dist/`.
+- **No other origin:** the policy of UI responses names no host, scheme or
+  wildcard. `default-src`, `script-src`, `style-src`, `img-src` (with
+  `data:`), `font-src`, `connect-src` and `form-action` are `'self'`: the
+  interface loads nothing from anywhere else ([`interface.md`](interface.md)
+  §1), and a build of it that tried to would be stopped here.
 - **Residual deviation:** a UI build without the manifest falls back to
-  `'unsafe-inline'` (logged as a warning at startup). `style-src`/`font-src`
-  allow the third-party font host `https://fonts.bunny.net`; `img-src` and
-  `connect-src` allow Unsplash (the login page's background photo).
-- *Verify:* `server-leaf` unit tests `hashes_replace_unsafe_inline` and
-  `without_a_manifest_falls_back_to_unsafe_inline` (`src/lib.rs`).
+  `'unsafe-inline'` (logged as a warning at startup).
+- *Verify:* `server-seedling` unit tests `hashes_replace_unsafe_inline`,
+  `names_no_origin_but_the_servers_own` and
+  `without_a_manifest_falls_back_to_unsafe_inline` (`src/lib.rs`); in `app`,
+  `scripts/check-origins.mjs` on the built files and the end-to-end test
+  "the pages load nothing from another origin, and nothing is refused".
 
 ### 4.7 Cross-origin requests (CORS)
 - **Mitigation:** explicit origin allowlist in configuration; no `Access-Control-Allow-Origin: *`.
@@ -183,7 +188,9 @@ Android screen lock, a security key with a PIN or a fingerprint reader, a passwo
 
 ### User verification is required, everywhere
 
-**Status:** built; the test that pins it is decided — step 1 (core#87).
+**Status:** built. *Verify:* `brigid-api`'s test
+`a_passkey_that_does_not_verify_its_user_is_refused` (a registration built by hand, with
+and without the user-verified flag).
 
 `userVerification: "required"` in every ceremony (sign-up, sign-in with or without passkey
 autofill, adding a passkey, enrolling after recovery), and the server refuses a response
@@ -255,8 +262,8 @@ These hold by decision and are not enforced by the code described here. Each joi
 above, with its reference and its test, when it is implemented.
 
 - **Labels never leave:** an identity's name and icon are never sent to a relying party
-  ([`model.md`](model.md) §2). *In review with core#92, whose tests assert the content of
-  the token.*
+  ([`model.md`](model.md) §2). *Built: the tests of the token assert its whole content, and
+  the demonstration site's end-to-end suite reads what an application receives.*
 - **No link across servers** (§8).
 - **What describes a person is unreadable to the operator**, and only passkeys that make
   this possible are accepted (§7).

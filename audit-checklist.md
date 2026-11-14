@@ -14,12 +14,11 @@ This audit covers:
 |---|---|---|
 | `brigid-crypto` (`brig-id/crypto`) | 1 | Cryptographic primitives |
 | `brigid-store` | 2 | Zero-trust SQLite storage |
-| `brigid-did` | 2 | The server's own DID document (its removal is decided: `protocol.md` §8) |
 | `brigid-identity` | 3 | VSID computation, usernames, recovery codes |
 | `brigid-webauthn` | 4 | Passkey registration and authentication |
 | `brigid-oidc` | 5 | JWT issuance and validation |
 | `brigid-api` | 6 | Axum HTTP server |
-| `web` (`brig-id/app`) | 6 | Qwik UI, built as static (SSG) files and served by `server-leaf` |
+| `web` (`brig-id/app`) | 6 | Qwik UI, built as static (SSG) files and served by `server-seedling` |
 
 > There is no server-rendered UI: `brig-id/app` is a static (SSG) build, and
 > `core` contains no UI crate.
@@ -83,27 +82,30 @@ This audit covers:
 - [ ] Does the server emit a strict `Content-Security-Policy` header?
   - *Check:* two policies, see `security-model.md` §4.6. API responses:
     `brigid-api/src/router.rs` (`build_router()`), no inline source. UI
-    responses: `server-leaf/src/lib.rs` (`apply_ui_fallback()`, `ui_csp()`),
+    responses: `server-seedling/src/lib.rs` (`apply_ui_fallback()`, `ui_csp()`),
     applied after the static-file fallback is attached so that it covers it.
 - [ ] Does the CSP include `unsafe-inline` for scripts or styles?
   - *Check:* it must not on a deployed instance. `ui_csp()` allows the inline
     `<script>`/`<style>` blocks of the Qwik build by `'sha256-…'` hash, read
     from `dist/csp-hashes.json` (written by `app`'s `scripts/csp-hashes.mjs`).
     Without that manifest it falls back to `'unsafe-inline'` and logs a
-    warning at startup: request `/login/` on the instance under audit and
-    read the `Content-Security-Policy` header. `style-src`/`font-src` also
-    allow the third-party font host `https://fonts.bunny.net`.
+    warning at startup: request `/` on the instance under audit and
+    read the `Content-Security-Policy` header.
+- [ ] Does the interface, or its policy, name any origin but the server's own?
+  - *Check:* it must not (`interface.md` §1). `ui_csp()` and its test
+    `names_no_origin_but_the_servers_own`; in `app`, `scripts/check-origins.mjs`
+    over the built files, with its short list of allowed names.
 - [ ] Can an attacker inject HTML into rendered pages?
   - *Check:* there is no server-rendered HTML — the UI is a Qwik static
-    (SSG) build served as-is by `server-leaf`; Qwik's JSX escapes all
+    (SSG) build served as-is by `server-seedling`; Qwik's JSX escapes all
     dynamic values by default at build time.
 
 ### 2.7 Transport security
 - [ ] Which TLS versions are accepted?
   - *Check:* TLS 1.2 and 1.3, in both setups (`security-model.md` §4.1):
     Caddy's defaults in the reference deployment, rustls' defaults when
-    `leaf` terminates TLS itself
-    ([`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/main/src/main.rs),
+    `seedling` terminates TLS itself
+    ([`server-seedling/src/main.rs`](https://github.com/brig-id/server-seedling/blob/main/src/main.rs),
     `RustlsConfig::from_pem_file()`). TLS 1.3 is not enforced as a minimum.
 - [ ] Is OpenSSL in the dependency tree?
   - *Check:* `cargo tree -i openssl-sys` — present as transitive dep of webauthn-rs-core (X.509 attestation parsing); must NOT be used for TLS (`cargo deny check bans` confirms)
@@ -117,10 +119,10 @@ This audit covers:
     transaction reverts, including already-processed rows.
 - [ ] Can the old master key still decrypt data after a successful rotation?
   - *Check:* must fail — test `rotate_master_key_old_key_can_no_longer_decrypt`
-- [ ] Does `leaf rotate-key` accept key material via `argv`, an environment
+- [ ] Does `seedling rotate-key` accept key material via `argv`, an environment
       variable, or stdin (any of which would defeat the `ps`/shell-history
       protections `operations.md` §1 relies on)?
-  - *Check:* `server-leaf/src/main.rs` — `Command::RotateKey { old, new }`
+  - *Check:* `server-seedling/src/main.rs` — `Command::RotateKey { old, new }`
     accepts only file paths (`PathBuf`), read via `MasterKey::from_file`;
     the subcommand does not call `MasterKey::from_env` at all, since both
     the old and new key are needed simultaneously and only one can occupy
@@ -128,7 +130,7 @@ This audit covers:
 - [ ] Does a rotation leave VSIDs and issued tokens unchanged?
   - *Check:* the VSID secret and the OIDC signing keys are stored and
     re-encrypted by `rotate_master_key()` (`server_secrets`, `oidc_keys`).
-    `server-leaf`'s test `rotate_key_cli_round_trip_login_works_with_new_key`
+    `server-seedling`'s test `rotate_key_cli_round_trip_login_works_with_new_key`
     signs in before and after `rotate-key` and compares the `sub`;
     `brigid-store`'s `vsid_secret_survives_a_master_key_rotation` covers the
     store alone.
@@ -165,7 +167,7 @@ This audit covers:
 - [ ] Every non-GET request on `/auth/*` and `/account/*` requires this server's `Origin`
 - [ ] No endpoint takes a `user_id`: the account always comes from the session
 
-### Deployment (server-leaf)
+### Deployment (server-seedling)
 - [ ] Binary refuses to start if `BRIGID_MASTER_KEY` (or `BRIGID_MASTER_KEY_FILE`)
       is absent, is not a 64-character ASCII hex string, or does not decode to
       exactly 32 bytes (see `security-model.md` §6 and `operations.md` for the
@@ -175,7 +177,7 @@ This audit covers:
 - [ ] Docker image is distroless (no shell, no package manager)
 - [ ] Container filesystem is read-only (`read_only: true` in compose)
 - [ ] `BRIGID_MASTER_KEY` supplied via Docker secret, not plain env var, in production
-- [ ] `leaf rotate-key` is reachable only via a file-based CLI (`--old`/`--new`
+- [ ] `seedling rotate-key` is reachable only via a file-based CLI (`--old`/`--new`
       paths), never `BRIGID_MASTER_KEY`, for the reasons in §2.8 above
 
 ---
@@ -222,7 +224,7 @@ cargo +nightly fuzz run fuzz_parse_identifier -- -max_total_time=60   # fuzz/, s
 cargo +nightly fuzz run fuzz_did_web_resolve -- -max_total_time=60
 cargo +nightly fuzz run fuzz_jwt_validate -- -max_total_time=60
 
-# In brig-id/server-leaf:
+# In brig-id/server-seedling:
 cargo audit
 cargo deny check
 cargo clippy --all-targets -- -D warnings
@@ -233,7 +235,7 @@ cargo test --test rotate_key         # MASTER_KEY rotation round-trip over real 
 pnpm install --frozen-lockfile
 pnpm audit                           # supply chain — check pnpm-workspace.yaml `overrides` if this fails
 pnpm build                           # qwik check-client + static (SSG) build
-pnpm test.e2e                        # Playwright suite — register/login/passkeys/sign-out against a real leaf
+pnpm test.e2e                        # Playwright suite — register/login/passkeys/sign-out against a real seedling
 ```
 
 ---
