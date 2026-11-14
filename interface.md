@@ -143,40 +143,17 @@ icon font, no request at run time.
 
 ### Stored logos
 
-An identity's logo is a reference stored as text ([`model.md`](model.md) §2). References
-take the form `icon:ph:<name>`. The 45 existing ones, in Font Awesome's vocabulary, are
-**converted once** by a database migration; afterwards nothing in the code knows the old
-names, and a reference in the old form is refused.
+An identity's logo is a reference stored as text ([`model.md`](model.md) §2), of the form
+`icon:ph:<name>`: the name of an icon of the set. The interface offers a library of 45
+of them, sorted in five groups; the server checks the form of a reference, not that the
+library holds it, so that the library can grow without a change to the server.
 
-| Legacy (`icon:solid:…`) | Phosphor | | Legacy | Phosphor |
-| --- | --- | --- | --- | --- |
-| `user` | `user` | | `palette` | `palette` |
-| `user-tie` | `user-circle-gear` ≈ | | `camera` | `camera` |
-| `user-astronaut` | `rocket-launch` ≈ | | `music` | `music-notes` |
-| `user-ninja` | `sword` ≈ | | `gamepad` | `game-controller` |
-| `user-secret` | `detective` | | `futbol` | `soccer-ball` |
-| `masks-theater` | `mask-happy` | | `bicycle` | `bicycle` |
-| `ghost` | `ghost` | | `mountain` | `mountains` |
-| `people-roof` | `house-line` ≈ | | `plane` | `airplane-tilt` |
-| `children` | `baby` ≈ | | `mug-hot` | `coffee` |
-| `people-group` | `users-three` | | `chess-knight` | `horse` ≈ |
-| `briefcase` | `briefcase` | | `house` | `house` |
-| `building` | `buildings` | | `globe` | `globe-hemisphere-west` |
-| `landmark` | `bank` | | `cart-shopping` | `shopping-cart` |
-| `graduation-cap` | `graduation-cap` | | `heart` | `heart` |
-| `book` | `book-open` | | `star` | `star` |
-| `flask` | `flask` | | `bolt` | `lightning` |
-| `code` | `code` | | `leaf` | `leaf` |
-| `terminal` | `terminal-window` | | `feather` | `feather` |
-| `laptop-code` | `laptop` | | `gem` | `diamond` |
-| `server` | `hard-drives` | | `shield-halved` | `shield-check` |
+Nothing was converted when the set changed: no server held identities to keep
+([`operations.md`](operations.md) §6). A reference the interface does not know is drawn as
+the plain person icon.
 
-Brands (`icon:brands:…`): `github`, `gitlab`, `discord`, `mastodon`, `linkedin` →
-`github-logo`, `gitlab-logo`, `discord-logo`, `mastodon-logo`, `linkedin-logo`.
-
-≈ marks an approximation: Phosphor has no direct equivalent, so the picture changes for
-identities that use it. Brand logos remain trademarks of their owners whatever the set's
-licence; the picker keeps them few.
+Brand logos (five of them) remain trademarks of their owners whatever the set's licence;
+the library keeps them few.
 
 ---
 

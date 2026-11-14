@@ -308,6 +308,21 @@ For whoever cuts a release:
 Other operators choose their own policy. Following tags automatically suits a small server;
 it is not a recommendation for every deployment.
 
+### The reset of 0.4
+
+**Status:** built.
+
+Before 0.4 nothing deployed had to be kept: one server, with test accounts. So 0.4 does not
+carry an earlier installation forward. The database schema is **one script**, and a
+database created by an earlier version is refused at start; the first signing key and the
+VSID secret are random, drawn at the first start, and nothing is derived from the master
+key for the sake of an earlier database; settings are read under `BRIGID_` only.
+
+The project's server moved by starting again from an empty database: its update script
+recognises a database of the earlier schema, backs it up, moves it aside and lets the server
+create its own. From 0.4 on, a change to the schema is a new numbered script, and a release
+upgrades the database it finds.
+
 ### How releases and updates are produced
 
 **Status:** decided — step 1. Today a release is three manual edits that must agree (the

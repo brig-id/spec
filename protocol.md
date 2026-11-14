@@ -40,11 +40,6 @@ created and stored in it, encrypted with a key derived from `MASTER_KEY`
 (the secret is stored, not derived from the master key at each start, so that
 rotating the master key changes no VSID).
 
-A database created before the secret was stored keeps the value it used until
-then, `HKDF-SHA3-256(ikm = MASTER_KEY, info = "brigid-vsid-salt")[..32]`,
-recorded as its secret at the first start or the first `rotate-key` of the
-upgraded server.
-
 ```
 VSID = HKDF-SHA3-256(
     ikm  = vsid_secret,                   // deployment-wide, stored encrypted
@@ -70,7 +65,7 @@ unambiguous. `v2` keeps it apart from the earlier construction, whose input was 
    Renaming anything, moving the server to another domain or rotating `MASTER_KEY` changes
    no VSID (see the rotation runbook in [`operations.md`](./operations.md)).
 
-*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `identity_vsid()`, `derive_vsid_salt()` (upgrade path only), tests `deterministic`, `different_client_different_vsid`, `different_identity_different_vsid`, `client_id_is_length_prefixed`, `known_answer`;
+*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `identity_vsid()`, tests `deterministic`, `different_client_different_vsid`, `different_identity_different_vsid`, `client_id_is_length_prefixed`, `known_answer`;
 [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `vsid_secret()`
 
 ---
