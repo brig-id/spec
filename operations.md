@@ -40,8 +40,8 @@ secrets:
     external: true   # created with: openssl rand -hex 32 | docker secret create master_key -
 
 services:
-  leaf:
-    image: brigid/leaf
+  seedling:
+    image: brigid/seedling
     secrets:
       - master_key
     environment:
@@ -53,7 +53,7 @@ services:
 export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 ```
 
-**Never:** embed the key in `leaf.toml`, Docker images, or version control.
+**Never:** embed the key in `seedling.toml`, Docker images, or version control.
 
 ### MASTER_KEY rotation procedure
 
@@ -67,7 +67,7 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
 > `openssl rand` invocation. As long as `/run/secrets/master_key.new`
 > survives between steps 3 and 5 (it lives on the orchestrator host's tmpfs,
 > not in the container), the rotated database is guaranteed to be wrapped
-> under the key the next leaf launch will receive. The runbook deletes the
+> under the key the next seedling launch will receive. The runbook deletes the
 > staged file with `shred -u` only after `docker secret create` has copied
 > it into Swarm's encrypted raft store.
 
@@ -84,19 +84,19 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    install -m 600 /dev/null /run/secrets/master_key.new
    openssl rand -hex 32 > /run/secrets/master_key.new
    ```
-4. **Re-encrypt the database** with the `leaf rotate-key` subcommand. It
+4. **Re-encrypt the database** with the `seedling rotate-key` subcommand. It
    **does not** accept key material as command-line arguments — `argv` is
    visible to other users via `ps`, leaks into shell history, crash reports,
    and audit logs. The only supported key-passing mode is file paths (Docker
    secret mount points):
    ```bash
    # File-based (the single supported form):
-   leaf --config /etc/brigid/leaf.toml rotate-key \
+   seedling --config /etc/brigid/seedling.toml rotate-key \
      --old /run/secrets/master_key \
      --new /run/secrets/master_key.new
    ```
-   `--config` is the same global flag a normal `leaf` startup takes; if the
-   deployment configures the database path via `LEAF_DATABASE__PATH`
+   `--config` is the same global flag a normal `seedling` startup takes; if the
+   deployment configures the database path via `BRIGID_DATABASE__PATH`
    instead of a TOML file, omit `--config` entirely — `rotate-key` resolves
    the database path exactly like a normal run, it just skips the rest of
    `Config` (`server`/TLS/CORS) since a rotation never touches those.
@@ -122,7 +122,7 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    The key material below is the same value staged in step 3 — re-read it
    from `/run/secrets/master_key.new`. Generating a new value here would
    break the rotation: the database has just been re-encrypted under the
-   step-3 key, so launching `leaf` with anything else makes the database
+   step-3 key, so launching `seedling` with anything else makes the database
    unreadable.
 
    Docker Swarm does **not** allow `docker secret rm` on a secret that is still
@@ -147,11 +147,11 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    #    `--secret-rm` detaches `master_key`; `--secret-add` attaches
    #    `master_key_v2` at the same in-container target path so
    #    `BRIGID_MASTER_KEY_FILE` does not need to change. This forces a
-   #    rolling restart of the leaf tasks.
+   #    rolling restart of the seedling tasks.
    docker service update \
      --secret-rm master_key \
      --secret-add source=master_key_v2,target=master_key \
-     leaf
+     seedling
 
    # 3. Only now can the old secret be removed — it is no longer referenced.
    docker secret rm master_key
@@ -184,17 +184,17 @@ re-encrypts them; it does not replace them.
 To rotate the signing key:
 
 ```bash
-leaf rotate-oidc-key      # reads BRIGID_MASTER_KEY_FILE / BRIGID_MASTER_KEY
-# then restart leaf
+seedling rotate-oidc-key      # reads BRIGID_MASTER_KEY_FILE / BRIGID_MASTER_KEY
+# then restart seedling
 ```
 
 1. The command stores a new key as current and marks the previous one retired.
-2. After the restart, `leaf` signs with the new key. The retired key stays in the JWKS and
+2. After the restart, `seedling` signs with the new key. The retired key stays in the JWKS and
    keeps verifying the tokens it signed for a grace period of two hours (tokens live one).
 3. A retired key past its grace period is deleted at a later start.
 
 The `kid` of a key is its RFC 7638 JWK thumbprint.
-*Implementation:* [`server-leaf/src/main.rs`](https://github.com/brig-id/server-leaf/blob/main/src/main.rs) — `rotate_oidc_key()`, `load_oidc_keys()`;
+*Implementation:* [`server-seedling/src/main.rs`](https://github.com/brig-id/server-seedling/blob/main/src/main.rs) — `rotate_oidc_key()`, `load_oidc_keys()`;
 [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `add_oidc_signing_key()`, `prune_oidc_keys()`.
 
 ---
@@ -213,7 +213,7 @@ The `kid` of a key is its RFC 7638 JWK thumbprint.
 4. Passkey re-registration is **not** required — only public key material
    (credential IDs and attestation) is stored; the passkey private key never
    leaves the authenticator.
-5. Rotate the OIDC signing key (`leaf rotate-oidc-key`, §2): whoever held the master key
+5. Rotate the OIDC signing key (`seedling rotate-oidc-key`, §2): whoever held the master key
    and a copy of the database could decrypt its seed and sign tokens.
 6. The VSID secret is not changed by the rotation, by design
    ([`protocol.md`](./protocol.md) §2): relying parties keep recognising their
@@ -246,7 +246,7 @@ one hour unused, and twelve hours after sign-in in any case.
 
 - [ ] `BRIGID_MASTER_KEY` is supplied via Docker secret (not env var)
 - [ ] TLS certificate is valid and from a trusted CA
-- [ ] `domain` in `leaf.toml` matches the TLS certificate's CN/SAN
+- [ ] `domain` in `seedling.toml` matches the TLS certificate's CN/SAN
 - [ ] `cors_origins` in config contains only your RP domain(s), no `*`
 - [ ] `read_only: true` set on the container filesystem in compose.yaml
 - [ ] `USER nonroot:nonroot` in Dockerfile (non-root container)
@@ -259,7 +259,7 @@ one hour unused, and twelve hours after sign-in in any case.
 
 ## 5. Monitoring and Alerting
 
-`leaf` exposes Prometheus metrics on an internal listener
+`seedling` exposes Prometheus metrics on an internal listener
 (`server.metrics_port`, never published): request counts by method, matched route and
 status, and latency histograms. Logs are structured JSON (`tracing`).
 
@@ -277,7 +277,7 @@ status, and latency histograms. Logs are structured JSON (`tracing`).
 
 A release of a server is a tag `vX.Y.Z` on `main`, created by CI when the release pull
 request is merged. The tag builds
-and publishes the container image `ghcr.io/brig-id/leaf:vX.Y.Z`.
+and publishes the container image `ghcr.io/brig-id/seedling:vX.Y.Z`.
 
 The project's own server, `helm.brig.id`, **deploys by pulling**. Every five minutes a timer
 on the machine:
@@ -307,6 +307,21 @@ For whoever cuts a release:
 
 Other operators choose their own policy. Following tags automatically suits a small server;
 it is not a recommendation for every deployment.
+
+### The reset of 0.4
+
+**Status:** built.
+
+Before 0.4 nothing deployed had to be kept: one server, with test accounts. So 0.4 does not
+carry an earlier installation forward. The database schema is **one script**, and a
+database created by an earlier version is refused at start; the first signing key and the
+VSID secret are random, drawn at the first start, and nothing is derived from the master
+key for the sake of an earlier database; settings are read under `BRIGID_` only.
+
+The project's server moved by starting again from an empty database: its update script
+recognises a database of the earlier schema, backs it up, moves it aside and lets the server
+create its own. From 0.4 on, a change to the schema is a new numbered script, and a release
+upgrades the database it finds.
 
 ### How releases and updates are produced
 

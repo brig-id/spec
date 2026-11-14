@@ -40,11 +40,6 @@ created and stored in it, encrypted with a key derived from `MASTER_KEY`
 (the secret is stored, not derived from the master key at each start, so that
 rotating the master key changes no VSID).
 
-A database created before the secret was stored keeps the value it used until
-then, `HKDF-SHA3-256(ikm = MASTER_KEY, info = "brigid-vsid-salt")[..32]`,
-recorded as its secret at the first start or the first `rotate-key` of the
-upgraded server.
-
 ```
 VSID = HKDF-SHA3-256(
     ikm  = vsid_secret,                   // deployment-wide, stored encrypted
@@ -70,7 +65,7 @@ unambiguous. `v2` keeps it apart from the earlier construction, whose input was 
    Renaming anything, moving the server to another domain or rotating `MASTER_KEY` changes
    no VSID (see the rotation runbook in [`operations.md`](./operations.md)).
 
-*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `identity_vsid()`, `derive_vsid_salt()` (upgrade path only), tests `deterministic`, `different_client_different_vsid`, `different_identity_different_vsid`, `client_id_is_length_prefixed`, `known_answer`;
+*Reference implementation:* [`brigid-identity/src/vsid.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-identity/src/vsid.rs) — `identity_vsid()`, tests `deterministic`, `different_client_different_vsid`, `different_identity_different_vsid`, `client_id_is_length_prefixed`, `known_answer`;
 [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `vsid_secret()`
 
 ---
@@ -195,8 +190,10 @@ the account always comes from the session.
 
 ## 6. The Sign-in of Relying Parties
 
-**Status:** in review (core#92, server-leaf#79, app#56) for everything in this section not
-marked otherwise. On `main` today, no endpoint issues a token.
+**Status:** built, for everything in this section not marked otherwise. *Verify:* the
+end-to-end suite of the demonstration site ([`brig-id/demo`](https://github.com/brig-id/demo)),
+which signs in through a real server with an ordinary OpenID Connect library, as a
+confidential and as a public client.
 
 A relying party obtains an ID token for an **identity**, never for the account, through the
 OpenID Connect Authorization Code flow.
@@ -335,7 +332,7 @@ that proves, sent to the server, and a part that decrypts, never sent
 
 ### `GET /.well-known/openid-configuration`
 
-**Status:** in review (core#92). The endpoints of §6, `response_types_supported: ["code"]`,
+**Status:** built. The endpoints of §6, `response_types_supported: ["code"]`,
 `subject_types_supported: ["pairwise"]`, `id_token_signing_alg_values_supported: ["EdDSA"]`,
 `scopes_supported: ["openid"]`, `code_challenge_methods_supported: ["S256"]`. It, the JWKS
 and the token endpoint can be read from any origin: none of them depends on a cookie.
@@ -362,8 +359,12 @@ a relying party verifies it with the key of that name.
 }
 ```
 
-### `GET /.well-known/did.json`
+### `GET /auth/server`
 
-**Status:** built; its removal is decided — step 1. The document repeats the key that the
-JWKS publishes, and nothing reads it. A relying party finds a server through the two
-documents above.
+**Status:** built. What differs from one server to another and the interface needs to know
+before anyone is signed in: `{ "sign_up": true | false }`, whether this server accepts new
+accounts ([`model.md`](model.md) §6). Same origin only.
+
+The server publishes no DID document: `/.well-known/did.json` repeated the key that the
+JWKS publishes and nothing read it, so it was removed. A relying party finds a server
+through the two documents above.
