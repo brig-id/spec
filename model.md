@@ -76,9 +76,11 @@ The word "connector", used earlier for all of these, is dropped.
 
 ## 3. Attributes
 
-**Status:** decided — step 2. Stored from the start so that end-to-end encryption
+**Status:** in review (core#91, app#55), except two lines marked *decided — step 2*: the
+photo, and the confirmation of an address by a message. Stored so that end-to-end encryption
 ([`security-model.md`](security-model.md) §7) takes them over at step 3 without a second
-migration.
+migration: the attributes of an identity are one encrypted value, under the same key as its
+label, and a copy of the database does not tell which attributes an identity has.
 
 Attributes are values a person puts on an identity in order to share them. They are
 optional and typed, and they belong to one identity: nothing is copied from one identity to
@@ -88,22 +90,30 @@ another, and the account has none.
 | --- | --- | --- |
 | First name, last name | `given_name`, `family_name` | `profile` |
 | A username chosen for this identity | `preferred_username` | `profile` |
-| A photo or avatar | `picture` | `profile` |
+| A photo or avatar. *Decided — step 2* | `picture` | `profile` |
 | Language, time zone | `locale`, `zoneinfo` | `profile` |
 | An e-mail address | `email`, `email_verified` | `email` |
 
 - The username attribute is a handle shown to applications, not a name to sign in with.
+- The server checks the shape of a value (an address looks like one, a language is a
+  language tag, a time zone a zone name) and nothing else: it does not know whether a first
+  name is the person's.
 - **E-mail** is optional, and the interface recommends it, because many applications need
-  one. If the server's administrator configured outgoing mail, the address is confirmed by a
-  message and shared as verified; otherwise it is shared as unverified. A small server is not
-  required to send mail. A made-up, undeliverable address is never generated: it would be a
-  false statement to the application.
+  one. *Built today:* it is always shared as unverified (`email_verified: false`).
+  *Decided — step 2:* if the server's administrator configured outgoing mail, the address is
+  confirmed by a message and shared as verified. A small server is not required to send
+  mail. A made-up, undeliverable address is never generated: it would be a false statement
+  to the application.
 
 **Attributes can link identities.** The per-application identifier keeps two identities
 apart; the same last name, username or address given through two identities undoes that,
 and no protocol can prevent it. The interface says so where an attribute is filled in, and
 warns clearly when an address is already used on another identity of the account (a variant
 of the same mailbox, `name+work@…`, protects little). It lets the person decide.
+
+*Implementation:* `core`, `brigid-identity/src/attributes.rs` (the list, the shapes);
+`brigid-store` (column `identities.attributes`); the interface's page of one identity,
+`/identities/details/`.
 
 ---
 
@@ -112,19 +122,24 @@ of the same mailbox, `name+work@…`, protects little). It lets the person decid
 | Step of v1 | An application receives |
 | --- | --- |
 | 1 | **The identifier only**: `sub`, the VSID of the chosen identity for that application. *Built* |
-| 2 | The identifier, and the attributes the person accepted to share (§5). *Decided* |
+| 2 | The identifier, and the attributes the person accepted to share (§5). *In review* (core#91) |
 
 An application is **registered** on a server by its administrator: a name shown to people,
 the exact addresses it may send people back to, and whether it can keep a secret
 ([`protocol.md`](protocol.md) §6). From step 2 its registration also lists what it may ask
 for, and which of it the application **requires**; the rest is **optional**. A request for
-more than its registration allows is refused.
+more than its registration allows is refused. Required or optional is a fact of the
+registration, set by the administrator; a request cannot change it.
+
+**An application cannot tell a refusal from an absence.** An attribute the person declined
+and one the identity does not have are both simply not in the answer.
 
 ---
 
 ## 5. The linking page
 
-**Status:** step 1, the choice of the identity, *built*. Step 2, attributes, *decided*.
+**Status:** step 1, the choice of the identity, *built*. Step 2, attributes, *in review*
+(core#91, app#55).
 
 When an application sends a person to brig·id, one page links an identity to it.
 
@@ -135,15 +150,26 @@ When an application sends a person to brig·id, one page links an identity to it
 - **From step 2**, when the application asks for attributes: each one is listed **with the
   value that would be sent**, marked required or optional. No box is ticked in advance. An
   optional attribute can be refused and the sign-in continues; refusing a required one stops
-  it. What the identity does not have is shown as such.
-- What was accepted is remembered per identity and per application. A later request for the
-  same attributes passes without the page; one more attribute, or a changed value, shows it
-  again: the person accepted a value, not a field name.
-- A request that asked for no page at all succeeds only when everything asked was already
-  accepted.
+  it. What the identity does not have is shown as such, with a field to put it on the
+  identity from there; adding a value shares nothing by itself.
+- What was decided is remembered per identity and per application, **with the value**: the
+  person accepted a value, not a field name. At a later request the attributes accepted come
+  already ticked, the ones refused stay unticked, and both say so. One more attribute, or a
+  changed value, waits for an answer again: an acceptance of an earlier value counts for
+  nothing.
+- The page is shown at every sign-in that allows one, as it already was for the choice of
+  the identity. A request that asked for no page at all succeeds only when everything asked
+  is already settled: accepted with today's value, or optional and refused or absent.
 - From the identity's page the person sees, per application, what was shared and when, and
-  can withdraw it. Withdrawing stops future sharing; it cannot take back what an
-  application already holds, and the page says so.
+  can withdraw it: one attribute, which is then asked again, or everything, which also
+  forgets that this identity was the one presented there. Withdrawing stops future sharing;
+  it cannot take back what an application already holds, and the page says so. It does not
+  change the identifier either: an application recognises the identity if it comes back.
+
+*Implementation:* `core`, `standing` in `brigid-api/src/routes/authorize.rs` (the one place
+that decides what is sent), `brigid-store` (table `grants`); the interface's `/continue/`
+and `/identities/details/`. *Verify:* the end-to-end suites of the interface
+(`e2e/attributes.spec.ts`) and of the demonstration site.
 
 ---
 
