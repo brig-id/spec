@@ -90,7 +90,10 @@ This audit covers:
     from `dist/csp-hashes.json` (written by `app`'s `scripts/csp-hashes.mjs`).
     Without that manifest it falls back to `'unsafe-inline'` and logs a
     warning at startup: request `/` on the instance under audit and
-    read the `Content-Security-Policy` header.
+    read the `Content-Security-Policy` header. *In review*
+    (server-seedling#74): no fallback is left; without the manifest the
+    interface is not served (`policy()` in `src/ui.rs`, test
+    `the_policy_names_no_origin_and_allows_no_inline_code`).
 - [ ] Does the interface, or its policy, name any origin but the server's own?
   - *Check:* it must not (`interface.md` §1). `ui_csp()` and its test
     `names_no_origin_but_the_servers_own`; in `app`, `scripts/check-origins.mjs`

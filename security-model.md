@@ -146,7 +146,8 @@ brig·id is a self-hosted identity provider:
     `apply_ui_fallback()`. It is applied after the static-file fallback is
     attached, because in axum 0.8 a `.layer()` only wraps the routes that
     exist when it is called: the layer inside `build_router()` cannot reach
-    a fallback added later.
+    a fallback added later. *In review* (server-seedling#74): the same, in
+    `src/ui.rs` (`apply_ui()`).
 - **Inline scripts and styles by hash:** the Qwik static (SSG) build emits
   inline `<script>`/`<style>` content (its resumability bootstrap), and with
   no per-request rendering step a nonce can't reach it. Instead `app`'s build
@@ -162,7 +163,11 @@ brig·id is a self-hosted identity provider:
   interface loads nothing from anywhere else ([`interface.md`](interface.md)
   §1), and a build of it that tried to would be stopped here.
 - **Residual deviation:** a UI build without the manifest falls back to
-  `'unsafe-inline'` (logged as a warning at startup).
+  `'unsafe-inline'` (logged as a warning at startup). *In review*
+  (server-seedling#74): **the deviation is closed.** A build of the interface
+  without its manifest is not served at all: a release build of the server
+  fails without it, and a directory without it is refused at start. There is
+  no `'unsafe-inline'` in any policy the server can emit.
 - *Verify:* `server-seedling` unit tests `hashes_replace_unsafe_inline`,
   `names_no_origin_but_the_servers_own` and
   `without_a_manifest_falls_back_to_unsafe_inline` (`src/lib.rs`); in `app`,
