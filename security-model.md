@@ -137,8 +137,10 @@ brig·id is a self-hosted identity provider:
 - **Mitigation:** `Content-Security-Policy` header restricts `default-src`,
   `frame-ancestors`, `object-src`, and `base-uri`. Two policies exist, by
   design:
-  - API responses (JSON only) get the strict policy of
-    `brigid-api/src/router.rs` (`build_router()`), with no inline source.
+  - API responses (JSON or a redirect, never a page) get the policy of
+    `brigid-api/src/router.rs` (`build_router()`): `default-src 'none'`, with
+    `frame-ancestors`, `base-uri` and `form-action` at `'none'`. Nothing can
+    be loaded, framed or submitted from one of them, and no origin is named.
   - UI responses (`/`, `/signup/`, static assets, …) get the policy of
     [`server-seedling/src/lib.rs`](https://github.com/brig-id/server-seedling/blob/main/src/lib.rs)'s
     `apply_ui_fallback()`. It is applied after the static-file fallback is
