@@ -32,8 +32,8 @@ v1 ships two products, seedling and grove, and the design of the third.
 - **Step 2: started.** The light theme and the accessibility checks in CI are built
   ([`interface.md`](interface.md) §3). In review: attributes, shown and accepted
   ([`model.md`](model.md) §3–§5), and the life of an account, from the identities proposed
-  at onboarding to export and deletion ([`model.md`](model.md) §6). Nothing else of the
-  step is.
+  at onboarding to export and deletion ([`model.md`](model.md) §6), and the interface
+  inside the executable (§3). Nothing else of the step is.
 
 ---
 
@@ -112,7 +112,8 @@ the 95th percentile under 300 ms, on a stated machine.
 ## 3. seedling: one executable
 
 **Status:** decided — step 2. Today: a container image behind a reverse proxy, with the
-interface as a directory of files.
+interface as a directory of files. *In review* (server-seedling#74): the interface is
+inside the executable, and the image holds the binary alone.
 
 One executable per target (Linux x86-64 and arm64 first), containing the interface (embedded
 at compile time), the database engine, TLS and an ACME client. It needs no container
@@ -138,6 +139,12 @@ it has outside itself. A container image remains as another packaging of the sam
 - **No self-update:** a server that replaces itself from the network is an attack surface.
 - A release build without the interface, or without its list of script hashes, fails: no
   fallback to a weaker Content Security Policy ([`security-model.md`](security-model.md) §4.6).
+- The interface is embedded with its text files compressed (about 0.7 MB for the whole of
+  it, against a limit of 2 MB that the build enforces). **A page is a file of the build**:
+  a path that names nothing answers `404`, and no page answers for the others. Files named
+  after their content are cached for good, pages are checked at each visit.
+- A directory holding another build of the interface can be served instead, as a
+  development option (`server.ui_dist_dir`), through the same code.
 
 ---
 
