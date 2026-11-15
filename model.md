@@ -189,17 +189,23 @@ it. The project's own server needs it before it has any administration. *Decided
 
 ### Onboarding
 
-**Status:** the passkey's name and the recovery code are built; the rest is decided — step 2.
+**Status:** the passkey's name and the recovery code are built; the proposed identities and
+the mandatory code are *in review* (core#98, app#61).
 
 - **The passkey gets a name**, pre-filled with its provider when the authenticator says
   which one it is ("Google Password Manager", "1Password"), editable. The provider is taken
   from an unverified hint and is used for nothing else.
 - **Starter identities are proposed, not imposed.** The onboarding proposes a few (for
   example Personal, Work, Public), ticked, that the person can rename, untick or complete.
-  The browser creates the ones kept; the server creates none. *Built today:* the server
-  creates three.
+  The browser creates the ones kept, when the person continues; the server creates none,
+  and only says which of its templates are the ones to propose.
 - **The recovery code is mandatory.** Onboarding does not finish until the person has
-  confirmed keeping it. *Built today:* it is offered and optional.
+  confirmed keeping it. The server holds its side of it: until an account has a recovery
+  code, its identities, their applications and the linking page are closed to it, and
+  nothing else is ([`protocol.md`](protocol.md) §7). An account that used its code to come
+  back is in the same place until it has taken the new one. A code is replaced, never
+  removed. What the server cannot know is whether the person kept the code: that
+  confirmation is the interface's.
 
 ### Passkeys
 
@@ -229,15 +235,22 @@ the server, never chosen by the person ([`protocol.md`](protocol.md) §7).
 
 ### Leaving
 
-**Status:** decided — step 2.
+**Status:** in review (core#98, app#61), except the line about the last administrator,
+*decided — step 2* with administration (§7).
 
-- **A person can delete their account**, after a passkey ceremony done for that purpose. It
-  removes the account, its passkeys, sessions, identities and what was recorded about the
-  applications they signed in to. The page says what it cannot do: an application keeps
-  what it received. The last administrator of a server names another first.
+- **A person can delete their account**, after a passkey ceremony done for that purpose: the
+  session alone is not enough, and a ceremony done to sign in does not count. It removes
+  the account, its passkeys, its recovery code, its sessions, its identities and what was
+  recorded about the applications they signed in to; no trace of it is kept. The page says
+  what it cannot do: an application keeps what it received, and the passkey stays in the
+  person's password manager until they remove it there. The last administrator of a server
+  names another first.
 - **A person can export their data**: their identities with their labels and attributes, and
-  the applications each one signed in to, in a documented, readable file. With end-to-end
-  encryption, the browser produces it.
+  the applications each one signed in to, with what was shared, in a documented, readable
+  file. **The browser produces it**, from what the account's pages already read: the server
+  has no export endpoint, and with end-to-end encryption it could not have one. The format
+  is described with the interface (`docs/export-format.md` in `brig-id/app`). It holds no
+  secret of the account and none of the identifiers applications know an identity by.
 
 ### Sessions
 
