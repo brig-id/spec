@@ -30,8 +30,10 @@ v1 ships two products, seedling and grove, and the design of the third.
   the interface only, and the update pull requests still wait for their tool to be
   installed ([`operations.md`](operations.md) §6).
 - **Step 2: started.** The light theme and the accessibility checks in CI are built
-  ([`interface.md`](interface.md) §3). Attributes, shown and accepted, are in review
-  ([`model.md`](model.md) §3–§5). Nothing else of the step is.
+  ([`interface.md`](interface.md) §3). In review: attributes, shown and accepted
+  ([`model.md`](model.md) §3–§5), and the life of an account, from the identities proposed
+  at onboarding to export and deletion ([`model.md`](model.md) §6). Nothing else of the
+  step is.
 
 ---
 

@@ -180,7 +180,7 @@ the account always comes from the session.
 
 | Endpoint | Effect |
 |---|---|
-| `GET /auth/session` | `200 { idle_expires_at, expires_at }`, or `401` when there is no live session or its account is gone |
+| `GET /auth/session` | `200 { idle_expires_at, expires_at }`, or `401` when there is no live session or its account is gone. *In review* (core#98): also `recovery_code`, whether the account has one |
 | `POST /auth/logout` | deletes the session row and clears the cookie (`204`). The token is unknown from then on, across restarts too |
 
 *Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs),
@@ -353,6 +353,11 @@ Shown as 40 base32 characters in groups of four.
   session. It enrols one passkey and does nothing else ([`model.md`](model.md) §6).
 - **Guards:** the rate limit of the ceremonies, constant-time comparison of verifiers, and
   no lockout.
+- *In review* (core#98): **an account without a recovery code is still in its onboarding.**
+  `/account/identities` and everything under it, and the answer to an authorization
+  request, are refused (`403`) until `POST /account/recovery-code` has run; the linking
+  page is told so (`needs_recovery_code`) and shown nothing of the account. Its session,
+  its passkeys and the code itself stay open. There is no endpoint that removes a code.
 
 *Decided — step 3:* with end-to-end encryption the code is split in the browser into a part
 that proves, sent to the server, and a part that decrypts, never sent
@@ -403,3 +408,29 @@ accounts ([`model.md`](model.md) §6). Same origin only.
 The server publishes no DID document: `/.well-known/did.json` repeated the key that the
 JWKS publishes and nothing read it, so it was removed. A relying party finds a server
 through the two documents above.
+
+---
+
+## 9. Deleting an Account
+
+**Status:** in review (core#98).
+
+| Endpoint | Effect |
+|---|---|
+| `POST /account/delete/begin` | With the session: a passkey authentication challenge for the session's account, held as a ceremony whose purpose is deletion |
+| `POST /account/delete/finish` | With the session and the passkey's answer: the account is deleted and the cookie cleared (`204`) |
+
+- **A ceremony has one purpose.** One begun to sign in is unknown to `delete/finish`, and
+  one begun to delete is unknown to `/auth/login/finish`.
+- The ceremony is begun for the session's account, and its challenge names that account's
+  passkeys only. `finish` also checks that the account whose passkey answered is the
+  session's.
+- Deleting removes the account's row, and with it its passkeys, recovery code, sessions,
+  identities with their attributes, the identity remembered for each relying party and
+  what was shared there. Nothing is kept: no tombstone, no log of who it was. A relying
+  party is not told.
+
+*Reference:* `brigid-api/src/routes/account.rs`, `EncryptedStore::delete_account`; tests
+`deleting_an_account_takes_its_own_passkey_ceremony_and_leaves_nothing`,
+`deleting_an_account_leaves_no_row_about_it`,
+`an_account_without_a_recovery_code_can_do_nothing_else`.
