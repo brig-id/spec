@@ -180,7 +180,7 @@ the account always comes from the session.
 
 | Endpoint | Effect |
 |---|---|
-| `GET /auth/session` | `200 { idle_expires_at, expires_at }`, or `401` when there is no live session or its account is gone. *In review* (core#98): also `recovery_code`, whether the account has one |
+| `GET /auth/session` | `200 { idle_expires_at, expires_at }`, or `401` when there is no live session or its account is gone, and `recovery_code`, whether the account has one |
 | `POST /auth/logout` | deletes the session row and clears the cookie (`204`). The token is unknown from then on, across restarts too |
 
 *Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs),
@@ -209,7 +209,7 @@ exact `redirect_uris` it may use (`https`, or `http` on the loopback host for de
 | Public | None: PKCE alone ties the client to the code |
 
 A registration also lists the **attributes** the relying party may ask for, each one
-required or optional ([`model.md`](model.md) §4); none by default. *In review* (core#91).
+required or optional ([`model.md`](model.md) §4); none by default.
 
 ### `GET /authorize` (also `POST`)
 
@@ -219,7 +219,7 @@ required or optional ([`model.md`](model.md) §4); none by default. *In review* 
 2. Any other error goes back to the relying party as an OAuth error, with its `state` and
    the `iss` parameter (RFC 9207): `response_type` other than `code`, a scope without
    `openid`, a missing or malformed PKCE challenge, `request` or `request_uri` (not
-   supported), `prompt=none` combined with another value. *In review* (core#91): the
+   supported), `prompt=none` combined with another value; and the
    `profile` or `email` scope from a relying party registered for none of that scope's
    attributes is `invalid_scope`; it asked for more than it may. A scope the server does
    not know is ignored.
@@ -230,7 +230,7 @@ required or optional ([`model.md`](model.md) §4); none by default. *In review* 
    browser is sent, by a `303`, to the interface page `/continue/?request=<id>`. From there
    every call is same-origin.
 
-*In review* (core#91): `profile` and `email` ask for the attributes of that scope the
+`profile` and `email` ask for the attributes of that scope the
 relying party is registered for, no others. There is no `claims` parameter.
 
 `state` and `nonce` are returned unchanged. `prompt=login` requires a passkey ceremony more
@@ -289,7 +289,7 @@ URI with `code`, `state` and `iss`.
 at two relying parties would let them link their users; a test asserts that, when no
 attribute is shared, the payload holds these claims and no other.
 
-*In review* (core#91): the attributes the person accepted for this relying party are added
+The attributes the person accepted for this relying party are added
 as the claims of their names (`given_name`, `family_name`, `preferred_username`, `email`,
 `locale`, `zoneinfo`), and `email_verified: false` with `email`. **An identity's label (its
 name, icon and description) has no claim**: a test shares every attribute and looks for the
@@ -310,7 +310,7 @@ ML-DSA-65 + Ed25519 signature ([`pqc.md`](pqc.md)).
 `client_identities`); integration tests `a_site_signs_a_person_in_and_learns_an_identifier_only`,
 `an_authorization_request_is_checked_before_anyone_is_asked`,
 `the_token_endpoint_gives_nothing_without_the_client_the_code_and_the_verifier`,
-`prompt_and_max_age_decide_whether_the_person_is_asked`. *In review (core#91):*
+`prompt_and_max_age_decide_whether_the_person_is_asked`. *Attributes (core#91):*
 `brigid-identity/src/attributes.rs`; `brigid-store` (table `grants`);
 `an_application_receives_an_attribute_only_once_its_exact_value_was_accepted`,
 `refusing_an_optional_attribute_continues_and_a_required_one_stops`,
@@ -318,7 +318,7 @@ ML-DSA-65 + Ed25519 signature ([`pqc.md`](pqc.md)).
 
 ### What an identity gave
 
-*In review* (core#91). Same-origin endpoints of the account, for the page of one identity
+Same-origin endpoints of the account, for the page of one identity
 ([`model.md`](model.md) §5):
 
 | Endpoint | Effect |
@@ -353,7 +353,7 @@ Shown as 40 base32 characters in groups of four.
   session. It enrols one passkey and does nothing else ([`model.md`](model.md) §6).
 - **Guards:** the rate limit of the ceremonies, constant-time comparison of verifiers, and
   no lockout.
-- *In review* (core#98): **an account without a recovery code is still in its onboarding.**
+- **An account without a recovery code is still in its onboarding** (core#98).
   `/account/identities` and everything under it, and the answer to an authorization
   request, are refused (`403`) until `POST /account/recovery-code` has run; the linking
   page is told so (`needs_recovery_code`) and shown nothing of the account. Its session,
@@ -373,7 +373,7 @@ that proves, sent to the server, and a part that decrypts, never sent
 
 **Status:** built. The endpoints of §6, `response_types_supported: ["code"]`,
 `subject_types_supported: ["pairwise"]`, `id_token_signing_alg_values_supported: ["EdDSA"]`,
-`scopes_supported: ["openid"]` (*in review*, core#91: also `profile` and `email`),
+`scopes_supported: ["openid", "profile", "email"]`,
 `code_challenge_methods_supported: ["S256"]`. It, the JWKS
 and the token endpoint can be read from any origin: none of them depends on a cookie.
 
@@ -413,7 +413,7 @@ through the two documents above.
 
 ## 9. Deleting an Account
 
-**Status:** in review (core#98).
+**Status:** built.
 
 | Endpoint | Effect |
 |---|---|
