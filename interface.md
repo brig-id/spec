@@ -56,23 +56,22 @@ The set, chosen on 2026-11-13 from Wikimedia Commons:
 | 2 | [Magic light (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Magic_light_%28Unsplash%29.jpg) | Ricardo Gomez Angel | CC0 1.0 | Dark, landscape: light through a forest |
 | 3 | [Forest-ray-of-sunshine-sunbeams (23957956609).jpg](https://commons.wikimedia.org/wiki/File:Forest-ray-of-sunshine-sunbeams_%2823957956609%29.jpg) | Pixel.la Free Stock Photos | CC0 1.0 | Dark, portrait: phones |
 | 4 | [Aurora borealis over Eielson Air Force Base, Alaska.jpg](https://commons.wikimedia.org/wiki/File:Aurora_borealis_over_Eielson_Air_Force_Base,_Alaska.jpg) | U.S. Air Force, Senior Airman Joshua Strang | Public domain (U.S. federal government work) | Dark, landscape |
-| 5 | [Dingle cliff (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Dingle_cliff_%28Unsplash%29.jpg) | Ian Schneider | CC0 1.0 | Light theme (step 2 of v1): the Irish coast |
+| 5 | [Dingle cliff (Unsplash).jpg](https://commons.wikimedia.org/wiki/File:Dingle_cliff_%28Unsplash%29.jpg) | Ian Schneider | CC0 1.0 | Light theme: the Irish coast |
 
 - Images 2 and 5 were published on Unsplash in March 2017 and October 2015, while its
   licence was CC0 (it changed in June 2017), and imported to Commons with that licence, which
   cannot be withdrawn. Each file page is checked again when the file is added.
 - Weight: AVIF with a JPEG fallback, two widths (960 and 1920 px), at most 150 KB per image
   at the larger width, **1 MB for the whole set**.
-- Which image is shown is decided without any network call. In v1 it is the default one,
-  and **only that one is shipped** (8 KB in AVIF at 1920 px); the others join the build when
-  something shows them.
+- Which image is shown is decided without any network call: image 1 in the dark theme,
+  image 5 in the light one. **Only those two are shipped** (8 KB and 79 KB in AVIF at
+  1920 px); the others join the build when something shows them.
 
 ---
 
 ## 3. Design system: our own, on native HTML
 
-**Status:** built for the dark theme and the two languages; decided — step 2 for the light
-theme.
+**Status:** built: both themes, the two languages, and the accessibility checks.
 
 **No component library.** The interface uses six components (page layout, card, input,
 button, callout, icon). They are written on native elements, with our own styles.
@@ -100,9 +99,10 @@ All CSS custom properties, on three levels: **primitive** (the palette in `oklch
 radii, type scale, durations), **semantic** (`--surface`, `--text`, `--accent`, `--border`,
 `--danger`, `--focus-ring`…, the only ones components use), and **component**, sparingly.
 
-**Dark first.** Step 1 ships the dark theme. The light theme is a second, designed set of
+**Two themes.** The dark theme came first. The light theme is a second, designed set of
 semantic values (not an inversion), selected by the system preference and overridable by the
-person. Tokens are named for both from the start, so that adding it touches no component.
+person, whose choice is remembered on the device. Tokens were named for both from the start:
+adding the light theme changed no component.
 
 ### Languages
 
@@ -120,9 +120,10 @@ hash, like the framework's own.
 
 WCAG 2.2 AA, held by tests and not by intention:
 
-- automated checks (axe) in the end-to-end tests on every page, in every theme and both
-  languages; a violation fails CI (*step 2*);
-- a manual pass per release with the keyboard only and with one screen reader;
+- automated checks (axe) in the end-to-end tests on every page and on the states a page can
+  be in, in both themes and both languages; a violation fails CI (*built*);
+- a manual pass per release with the keyboard only and with one screen reader, from a
+  written list (`ACCESSIBILITY.md` in `app`; *not done yet for any release*);
 - visible focus never hidden by a sticky element, targets of 24 px at least, nothing to
   remember or transcribe to sign in (which passkeys satisfy by nature);
 - `prefers-reduced-motion`, `prefers-contrast` and `forced-colors` honoured.

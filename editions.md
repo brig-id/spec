@@ -21,6 +21,17 @@ is for.
 
 v1 ships two products, seedling and grove, and the design of the third.
 
+### Where it stands
+
+- **Step 1: reached on 15 November 2026.** The project's own server runs seedling 0.4, and
+  the demonstration site ([demo.brig.id](https://demo.brig.id)) signs in through it, as an
+  application with a server and as one that runs entirely in the browser, with the new
+  interface. One part of what the step lists is not complete: releases are automated for
+  the interface only, and the update pull requests still wait for their tool to be
+  installed ([`operations.md`](operations.md) §6).
+- **Step 2: started.** The light theme and the accessibility checks in CI are built
+  ([`interface.md`](interface.md) §3). Nothing else of the step is.
+
 ---
 
 ## 2. Three editions, one model

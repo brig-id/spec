@@ -81,7 +81,7 @@ This audit covers:
 ### 2.6 XSS and injection
 - [ ] Does the server emit a strict `Content-Security-Policy` header?
   - *Check:* two policies, see `security-model.md` §4.6. API responses:
-    `brigid-api/src/router.rs` (`build_router()`), no inline source. UI
+    `brigid-api/src/router.rs` (`build_router()`), `default-src 'none'`. UI
     responses: `server-seedling/src/lib.rs` (`apply_ui_fallback()`, `ui_csp()`),
     applied after the static-file fallback is attached so that it covers it.
 - [ ] Does the CSP include `unsafe-inline` for scripts or styles?
