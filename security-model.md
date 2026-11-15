@@ -142,12 +142,11 @@ brig·id is a self-hosted identity provider:
     `frame-ancestors`, `base-uri` and `form-action` at `'none'`. Nothing can
     be loaded, framed or submitted from one of them, and no origin is named.
   - UI responses (`/`, `/signup/`, static assets, …) get the policy of
-    [`server-seedling/src/lib.rs`](https://github.com/brig-id/server-seedling/blob/main/src/lib.rs)'s
-    `apply_ui_fallback()`. It is applied after the static-file fallback is
-    attached, because in axum 0.8 a `.layer()` only wraps the routes that
-    exist when it is called: the layer inside `build_router()` cannot reach
-    a fallback added later. *In review* (server-seedling#74): the same, in
-    `src/ui.rs` (`apply_ui()`).
+    [`server-seedling/src/ui.rs`](https://github.com/brig-id/server-seedling/blob/main/src/ui.rs)'s
+    `apply_ui()`. It is applied after the interface is attached as the
+    router's fallback, because in axum 0.8 a `.layer()` only wraps the routes
+    that exist when it is called: the layer inside `build_router()` cannot
+    reach a fallback added later.
 - **Inline scripts and styles by hash:** the Qwik static (SSG) build emits
   inline `<script>`/`<style>` content (its resumability bootstrap), and with
   no per-request rendering step a nonce can't reach it. Instead `app`'s build
@@ -162,15 +161,16 @@ brig·id is a self-hosted identity provider:
   `data:`), `font-src`, `connect-src` and `form-action` are `'self'`: the
   interface loads nothing from anywhere else ([`interface.md`](interface.md)
   §1), and a build of it that tried to would be stopped here.
-- **Residual deviation:** a UI build without the manifest falls back to
-  `'unsafe-inline'` (logged as a warning at startup). *In review*
-  (server-seedling#74): **the deviation is closed.** A build of the interface
-  without its manifest is not served at all: a release build of the server
-  fails without it, and a directory without it is refused at start. There is
-  no `'unsafe-inline'` in any policy the server can emit.
-- *Verify:* `server-seedling` unit tests `hashes_replace_unsafe_inline`,
-  `names_no_origin_but_the_servers_own` and
-  `without_a_manifest_falls_back_to_unsafe_inline` (`src/lib.rs`); in `app`,
+- **No weaker policy:** a build of the interface without its manifest is not
+  served at all. A release build of the server fails without it, and a
+  directory without it is refused at start. There is no `'unsafe-inline'` in
+  any policy the server can emit (until 0.4.1 a build without manifest was
+  served under `'unsafe-inline'`, with a warning).
+- *Verify:* `server-seedling` unit tests
+  `hashes_make_the_policy_and_nothing_else_does`,
+  `the_policy_names_no_origin_and_allows_no_inline_code` and
+  `without_a_list_of_hashes_there_is_no_policy` (`src/ui.rs`), and
+  `a_directory_that_is_not_a_build_is_refused` (`tests/static_files.rs`); in `app`,
   `scripts/check-origins.mjs` on the built files and the end-to-end test
   "the pages load nothing from another origin, and nothing is refused".
 

@@ -82,21 +82,19 @@ This audit covers:
 - [ ] Does the server emit a strict `Content-Security-Policy` header?
   - *Check:* two policies, see `security-model.md` §4.6. API responses:
     `brigid-api/src/router.rs` (`build_router()`), `default-src 'none'`. UI
-    responses: `server-seedling/src/lib.rs` (`apply_ui_fallback()`, `ui_csp()`),
-    applied after the static-file fallback is attached so that it covers it.
+    responses: `server-seedling/src/ui.rs` (`apply_ui()`, `policy()`),
+    applied after the interface is attached as the fallback so that it covers it.
 - [ ] Does the CSP include `unsafe-inline` for scripts or styles?
-  - *Check:* it must not on a deployed instance. `ui_csp()` allows the inline
-    `<script>`/`<style>` blocks of the Qwik build by `'sha256-…'` hash, read
-    from `dist/csp-hashes.json` (written by `app`'s `scripts/csp-hashes.mjs`).
-    Without that manifest it falls back to `'unsafe-inline'` and logs a
-    warning at startup: request `/` on the instance under audit and
-    read the `Content-Security-Policy` header. *In review*
-    (server-seedling#74): no fallback is left; without the manifest the
-    interface is not served (`policy()` in `src/ui.rs`, test
-    `the_policy_names_no_origin_and_allows_no_inline_code`).
+  - *Check:* it cannot. `policy()` allows the inline `<script>`/`<style>`
+    blocks of the Qwik build by `'sha256-…'` hash, read from the build's
+    `csp-hashes.json` (written by `app`'s `scripts/csp-hashes.mjs`) and
+    embedded with the interface. Without that manifest the interface is not
+    served: a release build fails, a directory is refused at start (test
+    `the_policy_names_no_origin_and_allows_no_inline_code`). Request `/` on
+    the instance under audit and read the `Content-Security-Policy` header.
 - [ ] Does the interface, or its policy, name any origin but the server's own?
-  - *Check:* it must not (`interface.md` §1). `ui_csp()` and its test
-    `names_no_origin_but_the_servers_own`; in `app`, `scripts/check-origins.mjs`
+  - *Check:* it must not (`interface.md` §1). `policy()` (`server-seedling/src/ui.rs`) and its
+    test `the_policy_names_no_origin_and_allows_no_inline_code`; in `app`, `scripts/check-origins.mjs`
     over the built files, with its short list of allowed names.
 - [ ] Can an attacker inject HTML into rendered pages?
   - *Check:* there is no server-rendered HTML — the UI is a Qwik static

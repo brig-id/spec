@@ -30,10 +30,12 @@ v1 ships two products, seedling and grove, and the design of the third.
   the interface only, and the update pull requests still wait for their tool to be
   installed ([`operations.md`](operations.md) §6).
 - **Step 2: started.** The light theme and the accessibility checks in CI are built
-  ([`interface.md`](interface.md) §3). In review: attributes, shown and accepted
-  ([`model.md`](model.md) §3–§5), and the life of an account, from the identities proposed
-  at onboarding to export and deletion ([`model.md`](model.md) §6), and the interface
-  inside the executable (§3). Nothing else of the step is.
+  ([`interface.md`](interface.md) §3). So are attributes, shown and accepted
+  ([`model.md`](model.md) §3–§5), the life of an account, from the identities proposed at
+  onboarding to export and deletion ([`model.md`](model.md) §6), and the interface inside
+  the executable (§3): seedling 0.5.0. Still to build: administration, the rest of the
+  single executable (TLS, `init`, static binaries, the installation guide), grove, the move
+  between editions, and the design of end-to-end encryption.
 
 ---
 
@@ -112,8 +114,8 @@ the 95th percentile under 300 ms, on a stated machine.
 ## 3. seedling: one executable
 
 **Status:** decided — step 2. Today: a container image behind a reverse proxy, with the
-interface as a directory of files. *In review* (server-seedling#74): the interface is
-inside the executable, and the image holds the binary alone.
+interface inside the executable (*built*, server-seedling#74): the image holds the binary
+alone.
 
 One executable per target (Linux x86-64 and arm64 first), containing the interface (embedded
 at compile time), the database engine, TLS and an ACME client. It needs no container

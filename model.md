@@ -76,7 +76,7 @@ The word "connector", used earlier for all of these, is dropped.
 
 ## 3. Attributes
 
-**Status:** in review (core#91, app#55), except two lines marked *decided — step 2*: the
+**Status:** built, except two lines marked *decided — step 2*: the
 photo, and the confirmation of an address by a message. Stored so that end-to-end encryption
 ([`security-model.md`](security-model.md) §7) takes them over at step 3 without a second
 migration: the attributes of an identity are one encrypted value, under the same key as its
@@ -122,7 +122,7 @@ of the same mailbox, `name+work@…`, protects little). It lets the person decid
 | Step of v1 | An application receives |
 | --- | --- |
 | 1 | **The identifier only**: `sub`, the VSID of the chosen identity for that application. *Built* |
-| 2 | The identifier, and the attributes the person accepted to share (§5). *In review* (core#91) |
+| 2 | The identifier, and the attributes the person accepted to share (§5). *Built* |
 
 An application is **registered** on a server by its administrator: a name shown to people,
 the exact addresses it may send people back to, and whether it can keep a secret
@@ -138,8 +138,8 @@ and one the identity does not have are both simply not in the answer.
 
 ## 5. The linking page
 
-**Status:** step 1, the choice of the identity, *built*. Step 2, attributes, *in review*
-(core#91, app#55).
+**Status:** built: the choice of the identity (step 1) and attributes (step 2, core#91,
+app#55).
 
 When an application sends a person to brig·id, one page links an identity to it.
 
@@ -189,8 +189,7 @@ it. The project's own server needs it before it has any administration. *Decided
 
 ### Onboarding
 
-**Status:** the passkey's name and the recovery code are built; the proposed identities and
-the mandatory code are *in review* (core#98, app#61).
+**Status:** built.
 
 - **The passkey gets a name**, pre-filled with its provider when the authenticator says
   which one it is ("Google Password Manager", "1Password"), editable. The provider is taken
@@ -235,7 +234,7 @@ the server, never chosen by the person ([`protocol.md`](protocol.md) §7).
 
 ### Leaving
 
-**Status:** in review (core#98, app#61), except the line about the last administrator,
+**Status:** built, except the line about the last administrator,
 *decided — step 2* with administration (§7).
 
 - **A person can delete their account**, after a passkey ceremony done for that purpose: the
