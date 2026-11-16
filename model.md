@@ -209,8 +209,17 @@ and the interface says so instead of offering it.
 
 **Status:** built.
 
-A person adds a passkey per device, names each, and removes the ones retired. The last one
-cannot be removed.
+A person has as many passkeys as they want, names each, and removes the ones retired. The
+last one cannot be removed.
+
+- **One passkey per place.** A password manager, a device or a security key keeps one
+  passkey for an account, and making a second one there would replace the first. So when
+  a passkey is added, the server names the ones the account has, and a place that holds
+  one of them refuses. A second passkey is kept somewhere else.
+- **The person says where.** Adding a passkey asks first where it will be kept: this
+  device, another phone or tablet, a security key, or wherever the browser proposes. The
+  browser is told, so that it does not propose the place that already has one. A place
+  that refuses is said in those words, with what to choose instead.
 
 ### Recovery
 
@@ -321,6 +330,14 @@ ending one's other sessions.
 - *Decided — step 2:* for an open server, an **optional challenge against automated
   sign-ups**, self-hosted (a proof-of-work challenge, no third-party captcha), which the
   administrator enables.
+
+### What runs
+
+- **The server tells its edition and its version to its administrators**, and the
+  interface shows them with its own version at the foot of the administration. On the
+  machine, the executable says its version.
+- **Nobody else is told.** No answer a visitor can get names a version: a sign-in server
+  that publishes it tells whoever scans it which known weaknesses to try.
 
 ### What administration never does
 

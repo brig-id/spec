@@ -108,6 +108,13 @@ the two creates none. A refusal is `403` with a `code`: `signup_closed`,
 `invitation_required`, or `link_invalid` (unknown, spent, expired or revoked, which the
 server does not tell apart).
 
+Adding a passkey to an account (`POST /auth/passkeys/add/begin` and `/finish`, with the
+session) is the same ceremony, with the account's existing credentials in
+`excludeCredentials`: an authenticator that holds one of them refuses to make another
+(the browser reports `InvalidStateError`), since it would replace it. The interface may
+add `hints` (`client-device`, `hybrid`, `security-key`) to say where the person means to
+keep the new passkey; the server neither sends nor checks them.
+
 ### Security checks (registration)
 - RP ID must exactly match the server domain (no wildcard).
 - Challenge must be single-use (deleted after verification).
@@ -480,6 +487,7 @@ the ceremony has one purpose and names the session's account only.
 | `POST /admin/invitations` | `{ uses, days }` (1 to 100, 1 to 90): the response holds the link, the only time it is readable |
 | `DELETE /admin/invitations/{id}` | Revokes the invitation |
 | `GET /admin/log` | The latest entries, newest first: when, what, by whom (an administrator or the machine), about which account, a detail. Usernames are looked up at this moment; an account that is gone has none |
+| `GET /admin/server` | `{ edition, version }`: what the program declared itself to be (`seedling`, its version), or nulls. Told here and nowhere else |
 
 - **Links.** A setup link, an administrator's link and an invitation are 128 random bits,
   base64url. The server stores their hash, their kind, how many accounts they still open
