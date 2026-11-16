@@ -254,6 +254,9 @@ one hour unused, and twelve hours after sign-in in any case.
 - [ ] `cargo audit` passes with no unignored advisories
 - [ ] Firewall rules: only ports 80 and 443 exposed
 - [ ] Reverse proxy (nginx/Caddy) in front for DDoS mitigation
+- [ ] The server has an administrator: the setup link it printed at its first start was
+      used, or `seedling admin link` was ([`model.md`](model.md) §7)
+- [ ] The sign-up policy is the one intended: a new server is by invitation
 
 ---
 
@@ -265,7 +268,7 @@ status, and latency histograms. Logs are structured JSON (`tracing`).
 
 | Event | Where to see it | Alert threshold |
 |---|---|---|
-| Rate limit triggered | `429` responses on `/auth/*`, `/account/*` (metrics) | Sustained > 100/min → investigate |
+| Rate limit triggered | `429` responses on `/auth/*`, `/account/*`, `/admin/*` (metrics) | Sustained > 100/min → investigate |
 | Sign-in failed | `401` responses on `/auth/login/finish` (metrics) | Sustained rise |
 | Internal error (database included) | `500` responses (metrics); log line `internal server error` with its `error` field | Any occurrence |
 | Server startup with missing key | Server refuses to start | Always alert |

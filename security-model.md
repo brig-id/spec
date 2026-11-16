@@ -275,7 +275,15 @@ above, with its reference and its test, when it is implemented.
 - **What describes a person is unreadable to the operator**, and only passkeys that make
   this possible are accepted (§7).
 - **No way in for an administrator:** no administrator can give access back to an account,
-  and a recovery code is mandatory ([`model.md`](model.md) §6–§7).
+  and a recovery code is mandatory ([`model.md`](model.md) §6–§7). *Built: no response of
+  the administration holds anything of an identity, and the tests of the server assert it;
+  every change needs a passkey ceremony a few minutes old at most.*
+- **The secrets of links are in no log:** a setup link, an administrator's link and an
+  invitation carry their secret in the fragment of the address, which is never sent
+  ([`model.md`](model.md) §7); the server stores only their hash.
+- **The administration log holds no name:** accounts are identifiers in it, it is
+  encrypted, and its entries are deleted after twelve months by default
+  ([`model.md`](model.md) §7).
 
 ---
 

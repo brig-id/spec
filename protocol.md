@@ -100,6 +100,14 @@ Sign-up asks for nothing but the passkey: the server generates the account's use
 which the person never types ([`model.md`](model.md) §1),
 and the account exists only once the passkey is stored. Registration opens the session.
 
+Whether an account may be created is the sign-up policy ([`model.md`](model.md) §7).
+`register/begin` takes an optional `{ "link": "…" }`: an invitation, or the setup link of
+a server without account. The link is checked at `begin` and **spent at `finish`, in the
+transaction that creates the account**: a link that reached its number of accounts between
+the two creates none. A refusal is `403` with a `code`: `signup_closed`,
+`invitation_required`, or `link_invalid` (unknown, spent, expired or revoked, which the
+server does not tell apart).
+
 ### Security checks (registration)
 - RP ID must exactly match the server domain (no wildcard).
 - Challenge must be single-use (deleted after verification).
@@ -180,7 +188,7 @@ the account always comes from the session.
 
 | Endpoint | Effect |
 |---|---|
-| `GET /auth/session` | `200 { idle_expires_at, expires_at }`, or `401` when there is no live session or its account is gone, and `recovery_code`, whether the account has one |
+| `GET /auth/session` | `200 { idle_expires_at, expires_at, recovery_code, admin, confirmed_at }`, or `401` when there is no live session, or its account is gone or suspended. `recovery_code`: whether the account has one. `admin`: whether it administers the server. `confirmed_at`: when the latest passkey ceremony of this session was done (§10) |
 | `POST /auth/logout` | deletes the session row and clears the cookie (`204`). The token is unknown from then on, across restarts too |
 
 *Reference:* [`brigid-api/src/session.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-api/src/session.rs),
@@ -402,8 +410,9 @@ a relying party verifies it with the key of that name.
 ### `GET /auth/server`
 
 **Status:** built. What differs from one server to another and the interface needs to know
-before anyone is signed in: `{ "sign_up": true | false }`, whether this server accepts new
-accounts ([`model.md`](model.md) §6). Same origin only.
+before anyone is signed in: `{ "sign_up": true | false, "policy": "open" | "invitation" |
+"closed" }`. `sign_up` says whether anyone can create an account without a link, `policy`
+which of the three policies applies ([`model.md`](model.md) §7). Same origin only.
 
 The server publishes no DID document: `/.well-known/did.json` repeated the key that the
 JWKS publishes and nothing read it, so it was removed. A relying party finds a server
@@ -434,3 +443,67 @@ through the two documents above.
 `deleting_an_account_takes_its_own_passkey_ceremony_and_leaves_nothing`,
 `deleting_an_account_leaves_no_row_about_it`,
 `an_account_without_a_recovery_code_can_do_nothing_else`.
+
+---
+
+## 10. Administration
+
+**Status:** built. What it is for and what it never shows: [`model.md`](model.md) §7.
+
+Every endpoint takes the account from the session, like the rest. **Reading needs an
+administrator's session. A change also needs a passkey ceremony done in that session five
+minutes ago at most** (`security.admin_confirmation_seconds`): the ceremony that opened the
+session counts, and so does a later one:
+
+| Endpoint | Effect |
+|---|---|
+| `POST /auth/confirm/begin` | With the session: a passkey authentication challenge for the session's account, held as a ceremony whose purpose is confirmation |
+| `POST /auth/confirm/finish` | With the session and the passkey's answer: the session's `confirmed_at` is now (`204`) |
+
+A change asked later than that is refused with `403` and the code `confirmation_required`;
+nothing was done, and the same request succeeds after a confirmation. Like deletion (§9),
+the ceremony has one purpose and names the session's account only.
+
+| Endpoint | Effect |
+|---|---|
+| `POST /admin/claim` | `{ link }`, with any account's session: the account becomes an administrator. The link was made on the machine; `403 link_invalid` otherwise |
+| `GET /admin/accounts` | The accounts: identifier, generated username, creation date, role, suspension, last sign-in, number of passkeys, whether a recovery code exists, and whether it is the session's own |
+| `POST /admin/accounts/{id}/suspend`, `…/unsuspend` | Suspends the account, or lifts it |
+| `PUT /admin/accounts/{id}/administrator` | `{ admin }`: grants or withdraws the role |
+| `DELETE /admin/accounts/{id}` | Deletes the account, as §9 does |
+| `GET /admin/applications` | The registered clients: identifier, name, return addresses, whether it has a secret, what it may ask for |
+| `POST /admin/applications` | Registers a client (§6). The response holds the secret of a confidential one: the only time it is readable |
+| `PUT /admin/applications/{client_id}/attributes` | Replaces what the client may ask for |
+| `DELETE /admin/applications/{client_id}` | Removes the client, and what identities had shared with it |
+| `GET /admin/sign-up` | The sign-up policy and the invitations that still open something: identifier, accounts left, end date. Never the link |
+| `PUT /admin/sign-up` | `{ policy }` |
+| `POST /admin/invitations` | `{ uses, days }` (1 to 100, 1 to 90): the response holds the link, the only time it is readable |
+| `DELETE /admin/invitations/{id}` | Revokes the invitation |
+| `GET /admin/log` | The latest entries, newest first: when, what, by whom (an administrator or the machine), about which account, a detail. Usernames are looked up at this moment; an account that is gone has none |
+
+- **Links.** A setup link, an administrator's link and an invitation are 128 random bits,
+  base64url. The server stores their hash, their kind, how many accounts they still open
+  and their end. The address that carries one puts it in the fragment (`/setup/#link=…`,
+  `/admin/claim/#link=…`, `/signup/#invitation=…`), which no request carries; the
+  interface sends it in a request body.
+- **A suspended account** has no session (they are deleted when it is suspended), and is
+  refused at sign-in and recovery with `403` and the code `suspended`. `POST /token`
+  answers `invalid_grant` for a code issued to one of its identities: a relying party
+  cannot tell why.
+- **The last administrator.** Withdrawing the role from, suspending or deleting the last
+  administrator who is not suspended is `409`; so is suspending or deleting one's own
+  account from these endpoints, and deleting one's account (§9) while being that last
+  administrator.
+- **The log** is one encrypted record per action, with the acting account and the account
+  concerned as identifiers. Deleting an account does not rewrite it: the identifier then
+  names nothing. Entries older than the retention are deleted at each start and each write.
+
+*Reference:* `brigid-api/src/routes/admin.rs`, `brigid-api/src/session.rs`
+(`Administrator`, `ConfirmedAdministrator`), `brigid-store/src/admin.rs`; tests
+`a_fresh_server_takes_no_account_until_its_setup_link_is_used`,
+`only_an_administrator_reaches_the_administration`,
+`no_administration_response_holds_anything_of_an_identity`,
+`an_administrative_change_needs_a_passkey_ceremony_done_a_moment_ago`,
+`a_suspended_account_is_closed_and_keeps_everything`,
+`an_invitation_opens_a_server_to_as_many_accounts_as_it_says`,
+`the_role_is_claimed_with_a_link_made_on_the_machine_and_the_log_names_nobody_who_left`.
