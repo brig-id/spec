@@ -33,7 +33,9 @@ v1 ships two products, seedling and grove, and the design of the third.
   ([`interface.md`](interface.md) §3). So are attributes, shown and accepted
   ([`model.md`](model.md) §3–§5), the life of an account, from the identities proposed at
   onboarding to export and deletion ([`model.md`](model.md) §6), and the interface inside
-  the executable (§3): seedling 0.5.0. Still to build: administration, the rest of the
+  the executable (§3): seedling 0.5.0. Administration is built too
+  ([`model.md`](model.md) §7): the first administrator from a setup link, accounts,
+  applications, the sign-up policy and invitations, a log. Still to build: the rest of the
   single executable (TLS, `init`, static binaries, the installation guide), grove, the move
   between editions, and the design of end-to-end encryption.
 

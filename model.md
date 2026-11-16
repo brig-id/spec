@@ -182,10 +182,9 @@ and `/identities/details/`. *Verify:* the end-to-end suites of the interface
 Sign-up asks for nothing but a passkey: no form, no username to invent. The account exists
 only once the passkey is stored, and the session is opened by the same ceremony.
 
-A server setting **closes sign-up** (`security.signup_open`): the creation of accounts is
-refused, sign-in and recovery are untouched, and the interface says so instead of offering
-it. The project's own server needs it before it has any administration. *Decided — step 2:* the administrator's sign-up policy
-(§7).
+**Who may create an account is the server's sign-up policy** (§7): anyone, the people
+invited, or nobody. Where an account cannot be created, sign-in and recovery are untouched,
+and the interface says so instead of offering it.
 
 ### Onboarding
 
@@ -234,8 +233,7 @@ the server, never chosen by the person ([`protocol.md`](protocol.md) §7).
 
 ### Leaving
 
-**Status:** built, except the line about the last administrator,
-*decided — step 2* with administration (§7).
+**Status:** built.
 
 - **A person can delete their account**, after a passkey ceremony done for that purpose: the
   session alone is not enough, and a ceremony done to sign in does not count. It removes
@@ -243,7 +241,7 @@ the server, never chosen by the person ([`protocol.md`](protocol.md) §7).
   recorded about the applications they signed in to; no trace of it is kept. The page says
   what it cannot do: an application keeps what it received, and the passkey stays in the
   person's password manager until they remove it there. The last administrator of a server
-  names another first.
+  names another first (§7).
 - **A person can export their data**: their identities with their labels and attributes, and
   the applications each one signed in to, with what was shared, in a documented, readable
   file. **The browser produces it**, from what the account's pages already read: the server
@@ -263,29 +261,88 @@ ending one's other sessions.
 
 ## 7. Administration
 
-**Status:** decided — step 2. Today a server is administered from its command line and its
-database.
+**Status:** built, except the challenge against automated sign-ups (*decided — step 2*).
+
+### Who administers
 
 - **Two roles, on the account**, never on an identity: administrator or not.
-- **The first administrator is born from a one-time setup link.** At its first start with an
-  empty database the server prints the link in its console and its log (128 random bits,
-  single use, one hour, stored hashed, renewed at each start while no administrator exists).
+- **The first administrator is born from a one-time setup link.** While it has no account,
+  the server prints the link at each start, in its console and its log: 128 random bits,
+  single use, one hour, stored hashed; a start makes a new one and cancels the one before.
   Opening it creates an account with a passkey, like any sign-up, and that account is the
-  administrator. Until then sign-up is closed. Reaching the console is the proof of being the
-  operator. "The first account created becomes administrator" was rejected: whoever reaches
-  a fresh public server first would own it.
-- If every administrator's passkeys are lost, a command on the machine prints a one-time
-  link that grants the role to the account that redeems it.
-- **What an administrator can do:** see the accounts (generated username, creation date,
-  number of passkeys, last sign-in, whether a recovery code exists), suspend or delete an
-  account, invite, grant or withdraw the role, register applications, set the sign-up policy
-  (open, by invitation, closed). Every change requires a passkey ceremony a few minutes old
-  at most.
-- **What administration never shows:** an account's identities, their labels, their
-  attributes, or where they are used. An audit log records administrative actions.
-- **An administrator cannot give access back to an account** (§6).
-- For an open server: an **optional challenge against automated sign-ups**, self-hosted (a
-  proof-of-work challenge, no third-party captcha), which the administrator enables.
+  administrator. It works whatever the sign-up policy. Reaching the console is the proof of
+  being the operator. "The first account created becomes administrator" was rejected:
+  whoever reaches a fresh public server first would own it.
+- **A server that has accounts and no administrator gets one from the machine.** That is a
+  server upgraded from a version without administration, or one whose administrators all
+  lost their passkeys. A command (`seedling admin link`) prints a link of the same kind;
+  the account that opens it, signed in, receives the role.
+- **The secret of a link is in the fragment of its address** (`/setup/#link=…`), for these
+  two links and for invitations. A browser never sends a fragment: the secret is in no
+  request but the one that uses it, so in no access log of the server or of a proxy in
+  front of it.
+- **The last administrator stays.** The role is not withdrawn from the last administrator
+  who can sign in, and that account is neither suspended nor deleted: another is named
+  first. An administrator does not suspend or delete their own account from the
+  administration.
+
+### What an administrator can do
+
+- **See the accounts:** the generated username, the creation date, the number of passkeys,
+  the last sign-in, whether a recovery code exists, whether the account is suspended or
+  administers.
+- **Suspend an account.** Its sessions end at once; sign-in, recovery and the tokens its
+  applications ask for are refused, and the person is told why. Nothing is deleted: lifted,
+  the account is as it was.
+- **Delete an account**, with everything a person's own deletion removes (§6).
+- **Grant or withdraw the role.**
+- **Register applications** (§4): the name shown to people, the return addresses, whether
+  the application keeps a secret (shown once, at registration), and what it may ask for.
+  Change what an application may ask for, or remove it.
+- **Set the sign-up policy** and make invitations (below).
+- **Every change requires a passkey ceremony done in the session five minutes ago at most**
+  (a server setting). Past it, the server refuses the change and the interface asks for
+  the passkey, then sends the change again. Reading asks for nothing more than the session.
+- The same can be done from the machine for what a server needs before it has an
+  administrator: registering applications and setting the sign-up policy.
+
+### Who may create an account
+
+- **Three policies:** anyone (open), the people invited (by invitation), nobody (closed).
+  **A new server is by invitation.** The policy is in the database, not in the
+  configuration: an administrator changes it from the interface, the operator from the
+  machine (`seedling signup <policy>`).
+- **An invitation is a link** that creates a number of accounts chosen by the administrator
+  (1 to 100) until a date they choose (1 to 90 days, 7 by default). Like the other links
+  it is 128 random bits, stored hashed and shown once. It can be revoked. The server does
+  not know who an invitation was given to, and keeps no trace of which account came from
+  which invitation.
+- An invitation does not open a closed server. The setup link works whatever the policy.
+- *Decided — step 2:* for an open server, an **optional challenge against automated
+  sign-ups**, self-hosted (a proof-of-work challenge, no third-party captcha), which the
+  administrator enables.
+
+### What administration never does
+
+- **It never shows** an account's identities, their labels, their attributes, or where they
+  are used. No response of the administration holds any of it: what an administrator sees
+  of an account is the list above.
+- **An administrator cannot give access back to an account** (§6), and cannot act as one.
+
+### The log
+
+- **Every administrative action is recorded**, with those made from the machine: links
+  made and used, roles, suspensions, deletions, applications, the sign-up policy,
+  invitations.
+- **It names accounts by an identifier only.** The usernames are looked up when the log is
+  read: an account deleted since is named nowhere, and its entries say only that the
+  account is gone. An entry holds what was done, when, by whom, to which account, and a
+  short detail (an application's name, the policy chosen); never anything of an identity.
+- **It is encrypted** like the rest of the database, and **kept twelve months** by default
+  (a server setting): older entries are deleted when the server starts and as it writes
+  new ones. A log of who did what to whom is personal data; it is kept as long as it
+  serves and no longer.
+- The server's operational log (what the process prints) carries no account identifier.
 
 ---
 

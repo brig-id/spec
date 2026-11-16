@@ -177,17 +177,16 @@ together, already the public site's. No separate face for titles.
 
 ## 6. Three parts
 
-**Status:** sign-in and account are built; administration is decided —
-step 2.
+**Status:** built.
 
 The interface has three parts, called what they are, in the code as in the documents:
 
 | | Sign-in | Account | Administration |
 | --- | --- | --- | --- |
 | For | Someone arriving | Someone at home | The server's administrator |
-| Pages | Sign in; choose another server; create an account; recover; the linking page ([`model.md`](model.md) §5); the first administrator's setup | Onboarding; identities; passkeys; recovery code; leaving | Accounts; administrators; applications; sign-up policy |
+| Pages | Sign in; choose another server; create an account, with an invitation or without; recover; the linking page ([`model.md`](model.md) §5); the first administrator's setup | Onboarding; identities; passkeys; recovery code; leaving; receiving the administrator's role from a link | Accounts and their roles; applications; sign-up policy and invitations; the log |
 | Session | None, or being created | Account session | An administrator's session, with a recent passkey ceremony for any change |
-| Routes | `/`, `/signup/`, `/recover/`, `/continue/`, `/setup/` | account pages | `/admin/…` |
+| Routes | `/`, `/signup/`, `/recover/`, `/continue/`, `/setup/` | account pages, `/admin/claim/` | `/admin/…` |
 | Script | The smallest: the page works as HTML, a script runs the passkey ceremony | Normal | Normal |
 
 - **One application, one build, three route groups** with their own layouts. The framework
@@ -197,6 +196,14 @@ The interface has three parts, called what they are, in the code as in the docum
   groups, checked by a lint rule, so that its pages can be reviewed in one sitting.
 - The interface is a static build. What differs per server (name, sign-up policy) is read
   from a same-origin endpoint.
+- **The administration is offered to administrators only**, and to anyone else its pages
+  show one sentence and ask the server for nothing. That is a courtesy: the server refuses
+  each of those requests anyway.
+- **A change that needs the passkey again asks for it in place**
+  ([`model.md`](model.md) §7): the interface runs the ceremony and sends the change again,
+  once. A ceremony the person cancels changes nothing, and the page says so.
+- **A page opened from a link reads the secret from the fragment of its address**
+  ([`model.md`](model.md) §7) and sends it in the body of the one request that uses it.
 
 ---
 
