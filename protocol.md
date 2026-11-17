@@ -418,8 +418,10 @@ a relying party verifies it with the key of that name.
 
 **Status:** built. What differs from one server to another and the interface needs to know
 before anyone is signed in: `{ "sign_up": true | false, "policy": "open" | "invitation" |
-"closed" }`. `sign_up` says whether anyone can create an account without a link, `policy`
-which of the three policies applies ([`model.md`](model.md) §7). Same origin only.
+"closed", "edition": "seedling", "version": "0.7.1" }`. `sign_up` says whether anyone can
+create an account without a link, `policy` which of the three policies applies, `edition`
+and `version` what runs ([`model.md`](model.md) §7; null from a program that declared
+none). Same origin only.
 
 The server publishes no DID document: `/.well-known/did.json` repeated the key that the
 JWKS publishes and nothing read it, so it was removed. A relying party finds a server
@@ -487,7 +489,7 @@ the ceremony has one purpose and names the session's account only.
 | `POST /admin/invitations` | `{ uses, days }` (1 to 100, 1 to 90): the response holds the link, the only time it is readable |
 | `DELETE /admin/invitations/{id}` | Revokes the invitation |
 | `GET /admin/log` | The latest entries, newest first: when, what, by whom (an administrator or the machine), about which account, a detail. Usernames are looked up at this moment; an account that is gone has none |
-| `GET /admin/server` | `{ edition, version }`: what the program declared itself to be (`seedling`, its version), or nulls. Told here and nowhere else |
+| `GET /admin/server` | `{ edition, version }`: what the program declared itself to be (`seedling`, its version), or nulls. The same as in `GET /auth/server` |
 
 - **Links.** A setup link, an administrator's link and an invitation are 128 random bits,
   base64url. The server stores their hash, their kind, how many accounts they still open

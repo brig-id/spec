@@ -278,9 +278,6 @@ above, with its reference and its test, when it is implemented.
   and a recovery code is mandatory ([`model.md`](model.md) §6–§7). *Built: no response of
   the administration holds anything of an identity, and the tests of the server assert it;
   every change needs a passkey ceremony a few minutes old at most.*
-- **The version is not published:** the server tells which edition and version it runs to
-  its administrators only ([`model.md`](model.md) §7). *Built: a test searches the value
-  in every public answer and in what a session says of itself.*
 - **The secrets of links are in no log:** a setup link, an administrator's link and an
   invitation carry their secret in the fragment of the address, which is never sent
   ([`model.md`](model.md) §7); the server stores only their hash.
