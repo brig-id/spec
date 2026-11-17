@@ -216,6 +216,8 @@ last one cannot be removed.
   passkey for an account, and making a second one there would replace the first. So when
   a passkey is added, the server names the ones the account has, and a place that holds
   one of them refuses. A second passkey is kept somewhere else.
+- **Every passkey carries the same name for the account**, the one its first got:
+  `swift-otter-4821@id.example.org`. A passkey manager shows one account, of one server.
 - **The person says where.** Adding a passkey asks first where it will be kept: this
   device, another phone or tablet, a security key, or wherever the browser proposes. The
   browser is told, so that it does not propose the place that already has one. A place
@@ -333,11 +335,12 @@ ending one's other sessions.
 
 ### What runs
 
-- **The server tells its edition and its version to its administrators**, and the
-  interface shows them with its own version at the foot of the administration. On the
-  machine, the executable says its version.
-- **Nobody else is told.** No answer a visitor can get names a version: a sign-in server
-  that publishes it tells whoever scans it which known weaknesses to try.
+- **What runs is public.** The server says its edition and its version to anyone, and
+  the interface shows them with its own version at the foot of every page:
+  `seedling 0.7.1 · interface 0.6.1`. On the machine, the executable says its version.
+- That a scanner learns which version to aim at was weighed: someone who runs a server, or
+  wonders whether to trust one, should see whether it is current, and a vulnerable
+  version is found by trying it anyway.
 
 ### What administration never does
 
