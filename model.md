@@ -126,7 +126,10 @@ of the same mailbox, `name+work@…`, protects little). It lets the person decid
 
 An application is **registered** on a server by its administrator: a name shown to people,
 the exact addresses it may send people back to, and whether it can keep a secret
-([`protocol.md`](protocol.md) §6). From step 2 its registration also lists what it may ask
+([`protocol.md`](protocol.md) §6). *Decided — step 2:* an application can instead
+**describe itself** in a document on its own domain, and then signs in the people of any
+server that allows it, with no registration anywhere; it declares there what it asks for,
+and the administrator can only narrow it. From step 2 its registration also lists what it may ask
 for, and which of it the application **requires**; the rest is **optional**. A request for
 more than its registration allows is refused. Required or optional is a fact of the
 registration, set by the administrator; a request cannot change it.
@@ -375,11 +378,15 @@ to that server, which authenticates them.
   it; another one is named by its domain and the browser goes there.
 - **Accounts and identities are never linked across servers.** *Decided; an invariant
   ([`security-model.md`](security-model.md) §8).* An identity lives on one server and works
-  only for the applications registered on that server. Someone with a personal server and an
+  only for the applications that server accepts. Someone with a personal server and an
   employer's server has two accounts and nothing connects them: this is what keeps an
   employer from learning about personal identities, and it needs nothing to be built.
 - **A single view of one's servers.** *Decided — after v1.* A list kept in the browser only,
   so that no server learns of another.
+- **One application, every server.** *Decided — step 2.* An application that describes
+  itself ([`protocol.md`](protocol.md) §6) asks the person for their server's domain and
+  knows them by that server and their identifier together, so that no server can speak for
+  the people of another ([`security-model.md`](security-model.md) §8).
 - **"The brig·id network."** *Open.* The idea of servers connected to a network (a directory
   to choose one's server, a federation, or both) has no definition yet; nor has the way a
   domain announces where its server is. Whatever it becomes must hold with the second point.

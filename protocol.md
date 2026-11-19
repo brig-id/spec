@@ -226,6 +226,108 @@ exact `redirect_uris` it may use (`https`, or `http` on the loopback host for de
 A registration also lists the **attributes** the relying party may ask for, each one
 required or optional ([`model.md`](model.md) §4); none by default.
 
+Registration stays, for an operator's own applications and for development on a local
+server. An application meant for the people of *any* server describes itself instead (next
+section).
+
+### Clients that describe themselves
+
+**Status:** decided — step 2.
+
+A registration exists on one server. An application that wants the people of several
+servers would have to be registered on each, with a different `client_id` and secret on
+each, and could never accept someone whose server it does not know. Instead, the
+`client_id` **is an HTTPS URL**, and the document at that URL describes the client: OAuth
+Client ID Metadata Document, [draft-ietf-oauth-client-id-metadata-document-03](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/)
+(the mechanism of AT Protocol's OAuth, also adopted by the Model Context Protocol). Any
+server that allows it accepts that client with no step on the server's side.
+
+```json
+{
+  "client_id": "https://shop.example/oauth-client-metadata.json",
+  "client_name": "Example Shop",
+  "client_uri": "https://shop.example",
+  "logo_uri": "https://shop.example/logo.png",
+  "application_type": "web",
+  "redirect_uris": ["https://shop.example/callback"],
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
+  "scope": "openid email",
+  "token_endpoint_auth_method": "private_key_jwt",
+  "jwks_uri": "https://shop.example/jwks.json",
+  "brigid_attributes": { "email": "required", "given_name": "optional" }
+}
+```
+
+**The URL.** `https`, a path other than `/`, no query, no fragment, no user info, no `.` or
+`..` segment, compared as a string. The document's `client_id` must equal it. Its place is
+the application's choice; the guides propose `/oauth-client-metadata.json`. It is not a
+`/.well-known/` path: such a name is registered with IANA (RFC 8615) and means one document
+per host, while one domain can publish several clients (a website, a desktop application).
+**The URL is permanent**: the VSID is derived from it (§2), so a client that changes it
+changes the identifier of every person it knows.
+
+**Redirect URIs** are compared exactly and must be on the origin of the `client_id`, with
+the exceptions for native applications below.
+
+**Authentication at the token endpoint.**
+
+| Kind | How |
+|---|---|
+| With a server (`web`) | `private_key_jwt` (RFC 7523): a JWT signed by a key the document publishes, in `jwks_uri` or `jwks`, never both. `typ` checked, EdDSA or ES256 only, `jti` single use. There is no `client_secret`: no secret is shared with any server, and the client rotates its keys alone |
+| Without a server (a page in the browser, `token_endpoint_auth_method: "none"`) | None: PKCE alone, as for a registered public client |
+
+A client that declares `private_key_jwt` must authenticate with it; it cannot fall back to
+none.
+
+**Desktop and mobile applications** (`application_type: "native"`, RFC 8252) are public
+clients: a secret in a distributed program is not a secret. They still need a domain where
+their publisher puts the document. Their redirect URI is one of:
+
+- the **loopback** address, `http://127.0.0.1/<path>` or `http://[::1]/<path>`, with any
+  port (the port is ignored in the comparison, RFC 8252 §7.3; `localhost` is not accepted);
+- a **private-use scheme** that is the `client_id`'s host reversed, then `:/`
+  (`example.shop:/callback` for `https://shop.example/…`, RFC 8252 §7.1), so that an
+  application cannot claim another one's scheme;
+- an `https` URI on the origin of the `client_id`, opened by the application as a claimed
+  link (RFC 8252 §7.2).
+
+The browser used is the system's, never a view embedded in the application (RFC 8252 §8.12):
+the passkey ceremony needs the real origin. A program without a browser (a command line, a
+television) is not covered: the device flow (RFC 8628) is *decided — after v1*.
+
+**Fetching the document** is a request the server makes to an address chosen by anyone, so:
+`https` only; no address of a special-use range (RFC 6890: loopback, private, link-local,
+the cloud metadata address), checked on the address actually connected to; redirects not
+followed; `Accept: application/json`; at most 5 KiB read, ten seconds. A valid document is
+cached for the duration its HTTP headers give, bounded to between five minutes and one day,
+and kept while a refresh fails; an error or an invalid document is never cached. The same
+rules apply to `jwks_uri`, `logo_uri` excepted: the logo is not fetched by the server.
+
+**What people see.** `client_name` and `logo_uri` are declared by the client, so anyone can
+write "Example Bank" in them. The linking page shows the **host of the `client_id`** first
+and always; the name only beside it, never instead; the logo only for a client the operator
+trusts. `brigid_attributes` is an extension field (RFC 7591 §2 allows them): what the client
+asks for, each attribute required or optional. The operator can cap it; the person accepts
+or refuses it, as for a registered client.
+
+**The operator's policy**, one setting:
+
+| Policy | Accepts |
+|---|---|
+| `registered` | Registered clients only: the behaviour before this section |
+| `open` (default) | Any client that describes itself, except those on a list the operator refuses (`security-model.md` §8) |
+| `listed` | Only the clients on a list the operator accepts |
+
+The discovery document says `client_id_metadata_document_supported: true` when the policy is
+not `registered`.
+
+A relying party has its own rule, for every server: it **identifies a person by the pair
+(`iss`, `sub`)**, never by `sub` alone and never by an e-mail address, and finds a person's
+server from what the person types (a domain) through `/.well-known/openid-configuration`
+(§8). Why a server cannot then impersonate the people of another one is in
+[`security-model.md`](security-model.md) §8.
+
 ### `GET /authorize` (also `POST`)
 
 1. The client and its redirect URI are checked first, by exact comparison. If either is

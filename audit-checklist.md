@@ -155,6 +155,14 @@ This audit covers:
 - [ ] `exp` is always set and checked
 - [ ] `jti` is always generated (UUID v4)
 - [ ] `aud` is verified against `expected_client_id`
+- [ ] *(once built — `protocol.md` §6, clients that describe themselves)* fetching a client
+      document or its `jwks_uri` refuses special-use addresses on the address actually
+      connected to (DNS rebinding included), follows no redirect, reads at most 5 KiB, and
+      never caches an error
+- [ ] *(same)* a redirect URI off the `client_id`'s origin is refused, except the loopback
+      and reversed-host scheme of a native client; a `private_key_jwt` client cannot fall
+      back to no authentication
+- [ ] *(same)* the linking page shows the `client_id`'s host, never only the declared name
 
 ### HTTP
 - [ ] All `/auth/*` and `/account/*` routes are behind a rate limiter (ceremonies:
