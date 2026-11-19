@@ -53,7 +53,7 @@ brig·id is a self-hosted identity provider:
 | TLS certificate | High | Controls transport security |
 | SQLite database file | Low (zero-trust) | Raw dump must reveal no readable secrets |
 | Client browser | Untrusted | |
-| Relying party (RP) app | Semi-trusted | Registered `client_id` only |
+| Relying party (RP) app | Semi-trusted | A registered `client_id`, or the URL of the document it publishes (`protocol.md` §6) |
 
 ---
 
@@ -368,7 +368,8 @@ An idea was examined: an employer's server aggregating the identities a person h
 their personal server, to keep work identities unusable outside the company.
 
 - That purpose is already met without any link: an identity exists on one server, only that
-  server signs tokens for it, and only the relying parties registered there accept them.
+  server signs tokens for it, and only the relying parties that server accepts receive them
+  ([`protocol.md`](protocol.md) §6, the operator's policy).
 - "Everything is encrypted, so the employer sees nothing" does not hold. To present an
   identity a server must know that it exists, which account uses it, where and when. The
   link itself is the leak: whatever is shared into an employee's account on the employer's
@@ -379,6 +380,58 @@ their personal server, to keep work identities unusable outside the company.
 - The direction was reversed: the server that should know the least became the place where
   everything is gathered. If anything aggregates, it is the person's own browser
   ([`model.md`](model.md) §8).
+
+### What a relying party can trust of a server
+
+**Status:** decided — step 2 (the rule of relying parties, written in the integration
+guides); the lists below: decided — after v1.
+
+A relying party that accepts clients describing themselves ([`protocol.md`](protocol.md) §6)
+accepts people from servers it has never seen. Nothing it can check proves that a server
+runs unmodified brig·id, is not compromised, or is not a server made to look like one. A
+server can claim any edition and version. What the relying party verifies is narrower, and
+it is enough for the main threat:
+
+- **A token was signed by the key that the `iss` publishes over TLS.** Its `iss` is the
+  server the person named, its `aud` the relying party's own `client_id`, its signature
+  checks against that server's JWKS.
+- **A server speaks only for its own people.** The relying party identifies a person by
+  (`iss`, `sub`). A false or compromised server signs tokens with its own `iss`, so it can
+  sign in only as accounts that belong to it: never as a person of another server, at any
+  relying party that follows the rule.
+
+What remains, and is not solved by brig·id:
+
+| A server that is… | Can | Same as |
+|---|---|---|
+| False (made by anyone) | Create as many people as it wants | Sign-up with any e-mail address: a relying party that needs real people needs its own checks |
+| Compromised | Sign in as any of its own people | A compromised mail provider. Limited by passkeys (the server never holds a person's private key, but it can sign a token without one) and by the end-to-end encryption of what describes them (§7) |
+| Run by a hostile operator | The same | Choosing one's server is choosing whom to trust; the project says so to people |
+
+**Lists published by brig.id.** *Decided — after v1.* Two signed lists, in the format of
+[OpenID Federation 1.0](https://openid.net/specs/openid-federation-1_0.html) (final,
+February 2026): brig.id acts as a trust anchor, publishes its entity configuration at
+`/.well-known/openid-federation`, and issues **trust marks**, short-lived signed statements
+about an entity:
+
+- **About servers**, for relying parties: "this server's operator is known to the project
+  and runs a released version". It states who answers for the server, not that the server is
+  honest; it can be withdrawn at an incident. A relying party chooses: any server, servers
+  with the mark, or its own list.
+- **About clients**, for servers: clients reported for phishing or abuse. A server's
+  operator chooses to follow it, follow another list, or none (`protocol.md` §6, the
+  policies `open` and `listed`). A list is read periodically and applied; it is never a
+  condition for a server to work.
+
+Following a list is always the operator's or the relying party's choice, never a default
+that a server cannot leave: the project must not become the place every server depends on.
+Each list must say why an entry is there, and how to dispute it.
+
+**Fetching client documents** is the new attack surface of this section: the server makes
+requests to addresses chosen by anyone. The rules (special-use ranges refused on the address
+actually connected to, no redirects, size and time limits, bounded cache) are in
+[`protocol.md`](protocol.md) §6. A client's self-declared name is not shown in place of its
+host: otherwise any site could present itself as another one.
 
 ---
 
