@@ -130,7 +130,9 @@ brig·id is a self-hosted identity provider:
 
 ### 4.5 Storage (zero-trust)
 - **Mitigation:** `brigid-store` encrypts every sensitive field with AES-256-GCM + unique nonce before `INSERT`.
-- **Mitigation:** `MASTER_KEY` is never written to disk; loaded from env var or Docker secret.
+- **Mitigation:** `MASTER_KEY` is never stored in the database or the configuration; it is
+  loaded from an env var, a mounted secret, a root-only key file, or a key sealed by the
+  machine (§9).
 - **Mitigation:** HKDF-SHA3-256 used to derive per-context sub-keys from the master key.
 
 ### 4.6 Cross-site scripting (XSS)
@@ -452,6 +454,20 @@ Runtime: keys held in process memory only
          ↓
 Shutdown: keys dropped (zeroized on drop via secrecy/zeroize)
 ```
+
+### Where the key is kept
+
+| Kept | Read by | A copy of the database or a backup | The disk taken away | Root on the running machine |
+| --- | --- | --- | --- | --- |
+| A container secret (`BRIGID_MASTER_KEY_FILE`) | The platform, then the process | Protected | Depends on the platform | Not protected |
+| A root-only key file (seedling's default) | systemd hands it to the service (`LoadCredential=`) | Protected | **Not protected** | Not protected |
+| A key file on another disk | The same | Protected | Protected while that disk stays | Not protected |
+| Sealed by the machine (`seedling init --seal`, `seal-key`) | systemd unseals it with the TPM or the host key (`LoadCredentialEncrypted=`); a command typed as root uses `systemd-creds decrypt` | Protected | **Protected** | Not protected |
+
+A sealed key is useless off its machine, so the key is shown once when it is made: an offline
+copy is the only way back after the machine or its TPM is replaced (`seal-key --from`). No
+choice protects against someone who is root on the running machine, who can read the
+process's memory.
 
 ### MASTER_KEY requirements
 - 32 cryptographically random bytes (256 bits)

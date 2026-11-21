@@ -134,9 +134,11 @@ it has outside itself. A container image remains as another packaging of the sam
   by socket activation; a systemd unit is shipped.
 - **First start:** an `init` command creates the data directory and a configuration, and the
   server prints the setup link of the first administrator ([`model.md`](model.md) §7). For
-  the master key, two documented choices: a key file created by `init`, which protects
-  copies of the database and not the theft of the whole disk; or the key supplied from
-  outside the data disk.
+  the master key, three documented choices: a key file created by `init`, which protects
+  copies of the database and not the theft of the whole disk; the key supplied from
+  outside the data disk; or the key sealed by the machine (`init --seal`, `seal-key`:
+  `systemd-creds` with the TPM when there is one, the key shown once to keep offline),
+  which protects the disk taken away without a second disk ([`security-model.md`](security-model.md) §9).
 - **A static binary.** The server links to the system's OpenSSL only because the WebAuthn
   library depends on it to verify attestation certificates, which brig·id never asks for.
   The release build is a static binary with OpenSSL vendored.
