@@ -168,7 +168,8 @@ This audit covers:
 - [ ] All `/auth/*` and `/account/*` routes are behind a rate limiter (ceremonies:
       20 req/min; session routes: 60 req/min), and behind a reverse proxy the limit is per
       client (`security.trust_forwarded_for`), not per proxy
-- [ ] CORS `allow_origin` is explicit (no `Any`)
+- [ ] The account's routes send no `Access-Control-Allow-Origin`; only `/token`, the keys
+      and discovery answer `*`, without credentials
 - [ ] `X-Content-Type-Options: nosniff` is set
 - [ ] `X-Frame-Options: DENY` is set
 - [ ] `Strict-Transport-Security` is set
