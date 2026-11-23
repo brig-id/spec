@@ -76,21 +76,43 @@ brig·id is a self-hosted identity provider:
 ## 4. Attack Surfaces
 
 ### 4.1 Transport layer
-- **Reference deployment:** Caddy terminates TLS in front of `seedling`, which
-  listens on plain HTTP inside the container network
-  (`server-seedling/deploy/compose.yaml`). The accepted TLS versions are Caddy's
-  defaults: TLS 1.2 and 1.3.
-- **Built-in TLS (optional):** when `tls_cert`/`tls_key` are configured,
-  `seedling` terminates TLS itself via
-  `axum_server::tls_rustls::RustlsConfig::from_pem_file()`, with rustls'
-  default protocol versions: TLS 1.2 and 1.3. The minimum is **TLS 1.2**, not
-  1.3: nothing restricts the versions (no
-  `builder_with_protocol_versions(&[&TLS13])` call).
-  No OpenSSL-backed TLS connections either way; openssl-sys appears as a
-  transitive dependency of `webauthn-rs-core` (via `webauthn-attestation-ca`)
-  for X.509 attestation certificate parsing — not for network connections.
-  - *Verify:* run `cargo deny check bans`; the `deny.toml` skip-tree exception for `openssl-sys` documents this path. `cargo tree -i openssl-sys` shows it present; `cargo deny check bans` confirms it is allowed only as an attestation-parsing dep, not for TLS.
-  - *Implementation reference:* [`server-seedling/src/main.rs`](https://github.com/brig-id/server-seedling/blob/main/src/main.rs) — `RustlsConfig::from_pem_file()` call, `bind_rustls()`.
+
+The server holds its certificate in one of three ways, chosen in its
+configuration; naming half of one, or two at once, stops it at start.
+
+- **ACME (`server.acme = true`), the server alone on port 443.** It obtains a
+  certificate for `server.domain` from an ACME authority (RFC 8555; Let's
+  Encrypt unless `server.acme_directory` names another) and renews it once two
+  thirds of its lifetime have passed. The domain is proved with TLS-ALPN-01
+  (RFC 8737) on the TLS listener itself: a handshake that offers only the
+  `acme-tls/1` protocol receives a self-signed certificate carrying the SHA-256
+  digest of the key authorization, every other handshake the current
+  certificate. No other port is opened. A domain that is an IP address, a single
+  label or under `.localhost` is refused at start.
+  **Status:** built (core#122).
+- **Certificate files (`tls_cert`/`tls_key`).** The operator obtains and renews
+  them; a file that cannot be read stops the server before it listens.
+  **Status:** built.
+- **Behind a proxy (neither).** Plain HTTP on the internal network; the proxy
+  (Caddy, nginx) holds the certificate and its TLS versions are its own.
+  **Status:** built.
+
+**The built-in listener speaks TLS 1.3 only** (`builder_with_protocol_versions(&[&TLS13])`),
+with ACME and with files: every browser that can use a passkey speaks it. TLS is
+rustls with aws-lc; OpenSSL makes no network connection.
+
+**Where the keys are kept.** The ACME account key and the certificate's private
+key are stored in the database, encrypted under the master key like the
+server's other secrets (`server_secrets`, §9): a master key rotation
+re-encrypts them, a backup carries them, a copy of the database file without the
+master key does not give them. They are never written to a file.
+
+- *Verify:* `brigid-store`'s test `acme_secrets_are_encrypted_replaced_and_survive_a_rotation`
+  (no `PRIVATE KEY` in the raw row); `brigid-server`'s `tests/acme_pebble.rs`,
+  run in CI against Pebble, the test authority of Let's Encrypt (a certificate
+  obtained, served under its name, reloaded from the database, renewed with the
+  same account).
+- *Implementation reference:* [`brigid-server/src/acme.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-server/src/acme.rs) (`Certificates`, `server_config`, `Acme`); the choice of mode in `brigid-server/src/lib.rs` (`tls_mode`).
 - **HSTS** enforced via `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`.
 
 ### 4.2 Authentication endpoint (`/auth/*`)
@@ -445,7 +467,8 @@ Startup: BRIGID_MASTER_KEY (env var)  OR  BRIGID_MASTER_KEY_FILE (Docker/Swarm/K
          loader validates 64-char ASCII hex, decodes to 32 bytes
          ↓
          HKDF derives per-context keys (per-account storage keys, the keys
-         that encrypt the stored OIDC signing seeds and the VSID secret)
+         that encrypt the stored OIDC signing seeds, the VSID secret and the
+         ACME account and certificate keys)
          ↓
          OIDC signing keys and the VSID secret are read from the database
          and decrypted

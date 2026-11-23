@@ -115,9 +115,10 @@ the 95th percentile under 300 ms, on a stated machine.
 
 ## 3. seedling: one executable
 
-**Status:** decided — step 2. Today: a container image behind a reverse proxy, with the
-interface inside the executable (*built*, server-seedling#74): the image holds the binary
-alone.
+**Status:** built, except the `acme` mode in seedling itself (*in review*: core#122 builds it
+in the engine, then seedling exposes it). Static binaries for Linux x86-64 and arm64 with
+the interface inside (server-seedling#74, #77), `init`, the setup link and the systemd unit
+(server-seedling#76), the sealed key.
 
 One executable per target (Linux x86-64 and arm64 first), containing the interface (embedded
 at compile time), the database engine, TLS and an ACME client. It needs no container
@@ -126,9 +127,11 @@ it has outside itself. A container image remains as another packaging of the sam
 
 | TLS mode | For |
 | --- | --- |
-| `acme` | A public name: certificates obtained and renewed from an RFC 8555 authority (Let's Encrypt by default, any directory otherwise), by TLS-ALPN-01 on port 443. The ACME account key and the certificate keys are stored encrypted, like the other secrets |
+| `acme` | A public name: certificates obtained and renewed from an RFC 8555 authority (Let's Encrypt by default, any directory otherwise), by TLS-ALPN-01 on port 443, renewed once two thirds of their lifetime have passed. The ACME account key and the certificate keys are stored encrypted in the database, like the other secrets ([`security-model.md`](security-model.md) §4.1) |
 | `files` | A certificate and key provided by the operator |
 | `off` | Plain HTTP behind a proxy that terminates TLS |
+
+The built-in listener speaks TLS 1.3 only, in both modes.
 
 - The process never runs as root: ports 443 and 80 are bound with `CAP_NET_BIND_SERVICE` or
   by socket activation; a systemd unit is shipped.
