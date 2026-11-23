@@ -51,8 +51,9 @@ by what brig·id gives out ([`protocol.md`](protocol.md) §2).
   `icon:ph:<name>`, the name of an icon of the Phosphor set
   ([`interface.md`](interface.md) §4). The server checks its shape only.
 - An identity has no username to sign in with, and no DID.
-- **Templates** only pre-fill a label when an identity is created. An identity does not
-  remember its template, and a template carries no security meaning.
+- **Archetypes** only pre-fill a label when an identity is created. They belong to the
+  interface: the server receives the values and knows no archetype. An identity does not
+  remember its archetype, and an archetype carries no security meaning.
 
 ### The links of an identity
 
@@ -198,8 +199,8 @@ and the interface says so instead of offering it.
   from an unverified hint and is used for nothing else.
 - **Starter identities are proposed, not imposed.** The onboarding proposes a few (for
   example Personal, Work, Public), ticked, that the person can rename, untick or complete.
-  The browser creates the ones kept, when the person continues; the server creates none,
-  and only says which of its templates are the ones to propose.
+  The browser creates the ones kept, when the person continues; the server creates none.
+  What is proposed is the interface's (its archetypes).
 - **The recovery code is mandatory.** Onboarding does not finish until the person has
   confirmed keeping it. The server holds its side of it: until an account has a recovery
   code, its identities, their applications and the linking page are closed to it, and

@@ -99,7 +99,7 @@ export BRIGID_MASTER_KEY="$(openssl rand -hex 32)"
    deployment configures the database path via `BRIGID_DATABASE__PATH`
    instead of a TOML file, omit `--config` entirely — `rotate-key` resolves
    the database path exactly like a normal run, it just skips the rest of
-   `Config` (`server`/TLS/CORS) since a rotation never touches those.
+   `Config` (`server`/TLS) since a rotation never touches those.
    Environment variables and stdin are **not** supported by the rotation
    subcommand for the same reason `BRIGID_MASTER_KEY` itself is preferred via
    `BRIGID_MASTER_KEY_FILE` at runtime: piping or exporting the hex string
@@ -247,7 +247,6 @@ one hour unused, and twelve hours after sign-in in any case.
 - [ ] `BRIGID_MASTER_KEY` is supplied via Docker secret (not env var)
 - [ ] TLS certificate is valid and from a trusted CA
 - [ ] `domain` in `seedling.toml` matches the TLS certificate's CN/SAN
-- [ ] `cors_origins` in config contains only your RP domain(s), no `*`
 - [ ] `read_only: true` set on the container filesystem in compose.yaml
 - [ ] `USER nonroot:nonroot` in Dockerfile (non-root container)
 - [ ] Docker image is `gcr.io/distroless/cc-debian12` (no shell)

@@ -177,8 +177,13 @@ brig·id is a self-hosted identity provider:
   "the pages load nothing from another origin, and nothing is refused".
 
 ### 4.7 Cross-origin requests (CORS)
-- **Mitigation:** explicit origin allowlist in configuration; no `Access-Control-Allow-Origin: *`.
-- **Mitigation:** allowed headers enumerated (`Content-Type`, `Authorization`) — no wildcard `Access-Control-Allow-Headers`.
+- **The interface is served from the server's own origin**, with the session in an
+  `HttpOnly` cookie: the account's routes (`/auth/*`, `/account/*`, `/admin/*`) send no
+  `Access-Control-Allow-Origin` at all, and refuse a change that does not come from that
+  origin (§4.4). There is no setting to open them to another origin.
+- **What pages that sign in need answers any origin, without credentials:** the token
+  endpoint, the keys and discovery (`Access-Control-Allow-Origin: *`, no cookie).
+- *Verify:* `brigid-api`'s test `an_account_route_answers_no_other_origin`.
 
 ---
 
