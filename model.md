@@ -77,8 +77,7 @@ The word "connector", used earlier for all of these, is dropped.
 
 ## 3. Attributes
 
-**Status:** built, except two lines marked *decided — step 2*: the
-photo, and the confirmation of an address by a message. Stored so that end-to-end encryption
+**Status:** built, except the photo (*decided — step 2*). Stored so that end-to-end encryption
 ([`security-model.md`](security-model.md) §7) takes them over at step 3 without a second
 migration: the attributes of an identity are one encrypted value, under the same key as its
 label, and a copy of the database does not tell which attributes an identity has.
@@ -101,10 +100,11 @@ another, and the account has none.
   name is the person's.
 - **E-mail** is optional, and the interface recommends it, because many applications need
   one. *Built today:* it is always shared as unverified (`email_verified: false`).
-  *Decided — step 2:* if the server's administrator configured outgoing mail, the address is
-  confirmed by a message and shared as verified. A small server is not required to send
-  mail. A made-up, undeliverable address is never generated: it would be a false statement
-  to the application.
+  *Decided — step 2:* it stays so. **No server sends mail in v1**: the server does not
+  confirm an address by a message, and `email_verified` is always `false`. An application
+  that needs a verified address checks it itself, with its own message. A made-up,
+  undeliverable address is never generated: it would be a false statement to the
+  application. Verifying what a person states is a subject after v1 (§9).
 
 **Attributes can link identities.** The per-application identifier keeps two identities
 apart; the same last name, username or address given through two identities undoes that,
@@ -213,8 +213,9 @@ and the interface says so instead of offering it.
 
 **Status:** built.
 
-A person has as many passkeys as they want, names each, and removes the ones retired. The
-last one cannot be removed.
+A person has several passkeys, names each, and removes the ones retired. The last one
+cannot be removed. *Decided — step 2:* how many is bounded by the server's limit (§7, ten
+by default).
 
 - **One passkey per place.** A password manager, a device or a security key keeps one
   passkey for an account, and making a second one there would replace the first. So when
@@ -276,7 +277,8 @@ ending one's other sessions.
 
 ## 7. Administration
 
-**Status:** built, except the challenge against automated sign-ups (*decided — step 2*).
+**Status:** built, except the challenge against automated sign-ups and the limits
+(*decided — step 2*; the limits in progress).
 
 ### Who administers
 
@@ -315,11 +317,12 @@ ending one's other sessions.
   the application keeps a secret (shown once, at registration), and what it may ask for.
   Change what an application may ask for, or remove it.
 - **Set the sign-up policy** and make invitations (below).
+- **Set the limits** (below).
 - **Every change requires a passkey ceremony done in the session five minutes ago at most**
   (a server setting). Past it, the server refuses the change and the interface asks for
   the passkey, then sends the change again. Reading asks for nothing more than the session.
 - The same can be done from the machine for what a server needs before it has an
-  administrator: registering applications and setting the sign-up policy.
+  administrator: registering applications, setting the sign-up policy and the limits.
 
 ### Who may create an account
 
@@ -336,6 +339,37 @@ ending one's other sessions.
 - *Decided — step 2:* for an open server, an **optional challenge against automated
   sign-ups**, self-hosted (a proof-of-work challenge, no third-party captcha), which the
   administrator enables.
+
+### Limits
+
+**Status:** decided — step 2, in progress (core#94).
+
+A server open to people its operator does not know needs bounds on what one person, or one
+address, can make it store. Three limits, the same in every edition:
+
+| Limit | What it bounds | Default | Maximum |
+| --- | --- | --- | --- |
+| `identities_per_account` | The identities of one account | 20 | 200 |
+| `passkeys_per_account` | The passkeys of one account | 10 | 50 |
+| `sign_ups_per_ip_per_day` | The accounts created from one client address in a day | 5 | 1,000 |
+
+- An administrator sets them from the interface (the page "Limits"), the operator from the
+  machine (`limits`, [`operations.md`](operations.md) §7). Like the sign-up policy they are
+  in the database, not in the configuration, and a change is recorded in the log.
+- **The maxima are in the code**: no setting goes past them. They bound the work and the
+  storage one account can cause, and they are far above what a person uses.
+- A request past a limit is refused with a reason the interface shows; nothing already
+  stored is removed when a limit is lowered.
+- **Client addresses are kept hashed only, and for a day.** Counting sign-ups per address
+  needs the address; the server keeps a hash of it, not the address, and deletes it after
+  a day. An address alone is quickly found again from its hash by trying them all: the
+  hash is keyed with a secret of the server, so that a copy of the database does not give
+  it back. Behind a proxy the address is the one the proxy forwards, as for the rate limits
+  ([`security-model.md`](security-model.md) §4.2).
+- These limits are not a ceiling on the size of a server ([`editions.md`](editions.md) §2,
+  "Sizes"): they bound one account and one address, never the number of accounts.
+- **Recommended values per edition** are to come from measurements of sign-in and sign-up
+  on small machines; until then the defaults above apply everywhere.
 
 ### What runs
 
@@ -408,3 +442,9 @@ Decided as subjects, each needing its own design before anything is built:
   nothing. Where a certification can really come from is to be studied first.
 - **A server's own colours** on the sign-in pages, and white-label
   ([`interface.md`](interface.md) §7).
+- **Verification of what a person states**: an identity, an e-mail address, and other
+  attributes. Today nothing is verified: the server checks the shape of a value only (§3),
+  and an address is shared as unverified. What could be verified, by whom (the server, by a
+  message it sends; a third party), and what it costs in privacy (a verifier learns the
+  value, and a verified value is easier to link across identities) is to be studied first.
+  Nothing is decided.

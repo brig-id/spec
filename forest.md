@@ -349,13 +349,13 @@ Kubernetes is the one platform the project packages and tests for.
 
 ## 9. Coming from grove
 
-**Status:** decided — step 3, as a design; it stands on the move between editions
-([`editions.md`](editions.md) §5).
+**Status:** decided — step 3, as a design; the export and import it needs are decided —
+after v1 ([`editions.md`](editions.md) §5).
 
-A grove becomes a forest by the export and import every edition has. The tables have the
-same shapes in both databases (§3), so an import is a copy of rows, re-encrypted under the
-target's master key; the domain does not change. The project's own server follows this
-path.
+A grove becomes a forest by an export and an import: a SQLite backup, which moves a
+seedling to a grove, cannot be restored into PostgreSQL. The tables have the same shapes in
+both databases (§3), so an import is a copy of rows, re-encrypted under the target's master
+key; the domain does not change. The project's own server follows this path.
 
 ---
 

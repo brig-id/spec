@@ -36,8 +36,9 @@ v1 ships two products, seedling and grove, and the design of the third.
   the executable (§3): seedling 0.5.0. Administration is built too
   ([`model.md`](model.md) §7): the first administrator from a setup link, accounts,
   applications, the sign-up policy and invitations, a log. Still to build: the rest of the
-  single executable (TLS, `init`, static binaries, the installation guide), grove, the move
-  between editions, and the design of end-to-end encryption.
+  single executable (TLS, `init`, static binaries, the installation guide), grove, backup
+  and restore to move between seedling and grove (§5), the limits of a server open to
+  others (§2), and the design of end-to-end encryption.
 
 ---
 
@@ -71,7 +72,7 @@ what an outage costs.**
 | Availability | Stops with the machine; restored from a backup | One node; restarts in seconds; documented recovery point and time | No single point of failure; rolling updates without interruption |
 | TLS | Built in | Built in, or a proxy | The cluster's ingress |
 | Master key | A file or the environment | A container secret | The platform's secret manager |
-| Sign-up by default | By invitation | Open or by invitation, with quotas and abuse controls | By policy |
+| Sign-up by default | By invitation | Open or by invitation, with the limits below | By policy |
 | Updates | Replace the file | Follow the image tags | Rolling, migrations as a job |
 | Engine | **single node** | **single node** | **distributed** |
 
@@ -109,7 +110,28 @@ the 95th percentile under 300 ms, on a stated machine.
   size each.
 - **No ceiling in the software.** Beyond its tested maximum a server warns in the
   administration and in the log, and refuses nothing. A hard limit in free software can be
-  removed by anyone, and a refusal at account 101 is, for the person it hits, a bug.
+  removed by anyone, and a refusal at account 101 is, for the person it hits, a bug. The
+  limits below bound one account and one address, not the size of a server.
+
+### Limits of a server open to others
+
+**Status:** decided — step 2, in progress (core#94). Described in [`model.md`](model.md) §7.
+
+A server whose sign-up is open, as a grove often is, stores what people it does not know
+give it. Three limits bound that, the same in every edition, set by an administrator from
+the interface (the page "Limits") or by the operator from the machine (the `limits`
+command, [`operations.md`](operations.md) §7):
+
+| Limit | Default | Maximum, in the code |
+| --- | --- | --- |
+| `identities_per_account` | 20 | 200 |
+| `passkeys_per_account` | 10 | 50 |
+| `sign_ups_per_ip_per_day` | 5 | 1,000 |
+
+The defaults are the same for seedling and grove today. **Recommended values per edition**
+will come from measuring sign-in and sign-up on small machines, against the sizes above;
+the administration page will show them next to each limit. Until that measurement exists,
+no edition has values of its own.
 
 ---
 
@@ -174,15 +196,41 @@ database: one more service to run and to secure, for a load the database holds
 
 ## 5. Moving between editions
 
-**Status:** decided — step 2 (needed before grove).
-
-An export and import of a server's data (accounts, passkeys, identities, the VSID secret,
-the signing keys), encrypted, re-encrypted under the target's master key. Identifiers at
-applications survive: they do not depend on the host ([`protocol.md`](protocol.md) §2).
+**Status:** decided — step 2 for seedling and grove, in progress (core#94); decided — after
+v1 for forest.
 
 **The server's domain cannot change in a move**: a passkey is bound to the domain that
-created it. The project's own server follows this path on its domain: it becomes a grove
-when grove exists, and a forest when forest does.
+created it. Identifiers at applications survive: they depend on the VSID secret and on the
+identity, not on the host ([`protocol.md`](protocol.md) §2). The project's own server
+follows this path on its domain: it becomes a grove when grove exists, and a forest when
+forest does.
+
+### Between seedling and grove: a backup
+
+seedling and grove run the same engine on the same SQLite database (§2), so a move between
+them is a backup of one restored into the other. Two operator commands, the same in both
+([`operations.md`](operations.md) §7):
+
+- `backup` writes a **consistent copy of the database while the server runs** (SQLite's
+  online backup). The copy is encrypted as the database is, under the **same master key**:
+  it holds everything the server needs (accounts, passkeys, identities, the VSID secret,
+  the signing keys), and the master key is not in it.
+- `restore` puts a backup in place of the database of a server that is stopped. The target
+  starts with the same master key and on the same domain. It runs the same version as the
+  source or a newer one: it upgrades the schema it finds, and refuses a database whose
+  schema is newer than it knows.
+
+Nothing is re-encrypted and nothing is converted: the target reads the file as the source
+wrote it. The same two commands are how any seedling or grove is backed up and restored
+when nothing moves.
+
+### To forest: an export
+
+forest stores its data in PostgreSQL ([`forest.md`](forest.md) §3), so a SQLite file cannot
+be restored into it. Coming from grove needs an export and an import of the server's data
+(accounts, passkeys, identities, the VSID secret, the signing keys), encrypted, re-encrypted
+under the target's master key at import. *Decided — after v1*: it is needed only once forest
+is built.
 
 ---
 
@@ -212,8 +260,10 @@ machine, not the edition.
 
 ## 7. Licence, and what is paid
 
-**Status:** built for the licences; the trademark and its policy are decided — step 2.
-Versions released before the change keep the licence they were published under.
+**Status:** built for the licences. The contribution rule and the trademark policy are
+*in review* (brig-id/.github, `CONTRIBUTING.md` and `TRADEMARKS.md`); filing the mark is
+decided — step 2 and not done. Versions released before the change keep the licence they
+were published under.
 
 - **The servers, the shared core and the interface: AGPL-3.0-or-later.** One licence for the
   three servers, all public. The core follows, or the servers' licence would protect
@@ -225,11 +275,15 @@ Versions released before the change keep the licence they were published under.
   its author included, can take the code closed: for a product that says "you do not have to
   trust us", this is the strongest form of the promise. What is given up: the organisations
   that forbid AGPL software and would have bought other terms.
-- **Contributions under a Developer Certificate of Origin**, nothing to sign. With no other
-  licence to grant, no contributor agreement is needed.
-- **The name is to be registered** as a trademark before step 2, subject to a clearance
-  search: a first look found earlier marks close to it, and the filing waits for
-  professional advice. A short policy will say what others may do with the name: a fork or a
+- **Contributions under a Developer Certificate of Origin** (version 1.1), nothing to sign.
+  Each commit carries a `Signed-off-by` line with its author's name and address
+  (`git commit -s`), which certifies the contributor may give the change under the
+  repository's licence. With no other licence to grant, no contributor agreement is needed.
+  A check on pull requests verifies the line on every commit, for people outside the
+  organisation; its members and the update bots are exempt.
+- **The name is to be registered** as a trademark, subject to a clearance search: a first
+  look found earlier marks close to it, and the filing waits for professional advice. It is
+  not registered today. A short policy says what others may do with the name: a fork or a
   host may say truthfully that it is based on brig·id or compatible with it; it may not call
   itself brig·id or suggest it is the project. A trademark does not stop anyone from running
   the software for free, nor a fork under another name; with the AGPL, which makes whoever

@@ -155,6 +155,10 @@ This audit covers:
 - [ ] `exp` is always set and checked
 - [ ] `jti` is always generated (UUID v4)
 - [ ] `aud` is verified against `expected_client_id`
+- [ ] `email_verified` is `false` in every token that carries `email`: no server sends mail
+      in v1, so none can confirm an address (`model.md` §3)
+  - *Check:* `brigid-api`'s integration test
+    `an_application_receives_an_attribute_only_once_its_exact_value_was_accepted`
 - [ ] *(once built — `protocol.md` §6, clients that describe themselves)* fetching a client
       document or its `jwks_uri` refuses special-use addresses on the address actually
       connected to (DNS rebinding included), follows no redirect, reads at most 5 KiB, and
@@ -168,6 +172,9 @@ This audit covers:
 - [ ] All `/auth/*` and `/account/*` routes are behind a rate limiter (ceremonies:
       20 req/min; session routes: 60 req/min), and behind a reverse proxy the limit is per
       client (`security.trust_forwarded_for`), not per proxy
+- [ ] *(once built — `model.md` §7, limits)* no setting raises a limit past its maximum in
+      the code, from the interface or from the machine; the client addresses counted for
+      sign-up are stored only as a keyed hash and deleted after a day
 - [ ] The account's routes send no `Access-Control-Allow-Origin`; only `/token`, the keys
       and discovery answer `*`, without credentials
 - [ ] `X-Content-Type-Options: nosniff` is set
