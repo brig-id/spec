@@ -105,10 +105,10 @@ two other editions ([`editions.md`](editions.md) §2). forest does not add a sec
 - Editions on SQLite do not carry the PostgreSQL driver: it is a compile-time option of
   the store, which forest alone turns on.
 
-This was checked on a prototype before being written here: with the store of `core`
-moved to one set of statements (three of some ninety had to be rewritten, as above), the
-whole test suite of `core`, the sign-in flows included, passes on SQLite and on
-PostgreSQL 18. The prototype is not the implementation, which is still to come.
+This was checked on a prototype before being written here: with the store of `core` moved to
+one set of statements (three of about a hundred had to be rewritten, as above), the whole
+test suite of `core`, the sign-in flows included, passes on SQLite and on PostgreSQL 18. The
+prototype is not the implementation, which is still to come.
 
 ### The state shared between nodes
 
