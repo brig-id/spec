@@ -352,6 +352,13 @@ later), Google Password Manager, recent Windows 11, security keys with `hmac-sec
 1Password, Proton Pass. The prototype of step 2 measures this on real devices before the
 rule is enforced; if the exclusion proves much wider, the rule is reconsidered first.
 
+*Decided — step 2, not yet published:* the measurement is a test page,
+`lab.brig.id` (repository `brig-id/lab`). It creates a passkey on the device in hand, asks
+for a PRF output at creation and again at sign-in, and records which authenticator answered
+and what it returned: an output, none, or an error. It keeps no output, only whether one
+came. The project's author runs it on their own devices and the results are written here as
+a table, with the device, the system, the browser and the authenticator.
+
 ### Recovery
 
 The recovery code also decrypts. It is split in the browser into a part that proves the

@@ -4,7 +4,7 @@
 > (operators running brig·id in production are the primary consumers of
 > sections 1–3).
 > This document describes operational procedures: key rotation, incident response,
-> and deployment security.
+> deployment security, releases, backup and restore.
 
 ---
 
@@ -256,6 +256,8 @@ one hour unused, and twelve hours after sign-in in any case.
 - [ ] The server has an administrator: the setup link it printed at its first start was
       used, or `seedling admin link` was ([`model.md`](model.md) §7)
 - [ ] The sign-up policy is the one intended: a new server is by invitation
+- [ ] *(once built — §7)* Backups are taken and kept away from the master key, and one has
+      been restored on a test machine; for an open server, the limits are the ones intended
 
 ---
 
@@ -346,3 +348,70 @@ crypto vX ──▶ core ──▶ core vY ──┐
                                  ├──▶ server ──▶ server vZ ──▶ image, binaries
 app vW ──────────────────────────┘
 ```
+
+---
+
+## 7. Backup, restore and limits
+
+**Status:** decided — step 2, in progress (core#94, branch `feat/backup-and-limits`).
+Nothing in this section is in a release yet. Until it is, the online backup of §6 step 4
+(SQLite's `.backup`, run by the deployment) is the way a server is backed up.
+
+These are commands of the operator command line, the same in seedling and grove
+([`editions.md`](editions.md) §2). They run on the machine, on the database (inside the
+container for grove). Results go to standard output in a form a script can read; messages
+to standard error. The syntax below shows what each command does; its exact form is set
+with the implementation.
+
+### Backup
+
+```bash
+seedling backup /var/backups/brigid/2026-11-25.db   # while the server runs
+```
+
+- A **consistent copy of the database, taken while the server runs** (SQLite's online
+  backup): the server keeps answering, and the copy is the database as it was at one
+  moment.
+- The copy is encrypted as the database is, under the **same master key**, and does not
+  contain that key. Whoever holds a backup and the master key holds the server: a backup is
+  kept like the database, and away from the key ([`security-model.md`](security-model.md) §9).
+- What a backup does not hold: the master key, and the configuration.
+
+### Restore
+
+```bash
+seedling restore /var/backups/brigid/2026-11-25.db  # the server stopped
+```
+
+- Puts a backup in place of the database of a **stopped** server. The server then starts
+  with the **same master key** and on the **same domain**: passkeys are bound to the domain,
+  so a server restored under another name signs nobody in.
+- The restored server runs the version that made the backup or a newer one: it upgrades the
+  schema it finds, and refuses a database whose schema is newer than it knows.
+- What happened after the backup is gone: accounts created, passkeys added, sessions opened
+  since. Identifiers at applications do not change.
+- **This is how a server moves between seedling and grove** ([`editions.md`](editions.md)
+  §5): a backup of one, restored into the other. Moving to forest needs an export and an
+  import instead, decided — after v1.
+
+### Limits
+
+```bash
+seedling limits                               # prints the three limits
+seedling limits identities_per_account 30     # sets one
+```
+
+The limits of a server open to others ([`model.md`](model.md) §7):
+
+| Limit | Default | Maximum |
+| --- | --- | --- |
+| `identities_per_account` | 20 | 200 |
+| `passkeys_per_account` | 10 | 50 |
+| `sign_ups_per_ip_per_day` | 5 | 1,000 |
+
+They are in the database, like the sign-up policy: the command and the administration's page
+"Limits" change the same values, and the change is recorded in the log. A value above its
+maximum is refused. `sign_ups_per_ip_per_day` counts per client address, which behind a
+proxy requires `security.trust_forwarded_for = true`
+([`security-model.md`](security-model.md) §4.2): without it, every sign-up comes from the
+proxy, and after five sign-ups in a day sign-up is closed for everyone.
