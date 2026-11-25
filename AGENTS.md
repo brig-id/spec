@@ -22,6 +22,7 @@ sentence when the reason is not obvious.
 | `pqc.md` | Post-quantum algorithm choices and their use |
 | `interface.md` | The web interface: self-contained, design system, icons, typography, structure |
 | `editions.md` | What v1 is, the three editions, the licence, what is paid |
+| `forest.md` | The design of the largest edition: nodes without state, PostgreSQL, start, updates, failures |
 | `operations.md` | Keys, rotation, incidents, deployment, releases |
 | `audit-checklist.md` | Checklist for third-party auditors |
 | `audit/` | How the audit is funded; drafts of the requests |
@@ -65,6 +66,7 @@ Format: `type(scope): <emoji> description`
 | `pqc` | `pqc.md` |
 | `interface` | `interface.md` |
 | `editions` | `editions.md` |
+| `forest` | `forest.md` |
 | `operations` | `operations.md` |
 | `audit` | `audit-checklist.md`, `audit/` |
 | `docs` | `README.md`, `AGENTS.md`, changes across several documents |

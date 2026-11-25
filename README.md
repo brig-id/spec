@@ -33,6 +33,7 @@ about a running server.
 | [`pqc.md`](pqc.md) | Post-quantum algorithms and their use |
 | [`interface.md`](interface.md) | The web interface: self-contained, design system, icons, typography, structure |
 | [`editions.md`](editions.md) | What v1 is, the three editions, the licence, what is paid |
+| [`forest.md`](forest.md) | The design of the largest edition: several nodes on PostgreSQL |
 | [`operations.md`](operations.md) | Keys, rotation, incidents, deployment, releases |
 | [`audit-checklist.md`](audit-checklist.md) | What an auditor is asked to check |
 | [`audit/`](audit/README.md) | How the audit is to be funded, and the drafts of the requests |

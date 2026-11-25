@@ -67,7 +67,7 @@ what an outage costs.**
 | Run by | One person | A volunteer or a small team | A platform team |
 | Deliverable | One executable | One container image, a compose file | Stateless containers, a chart, an integration guide |
 | Needs | Nothing but itself | A container runtime | A cluster and a database |
-| Storage | SQLite file | SQLite file on its own volume, **continuously replicated** to a second place | Decided with its design (§4) |
+| Storage | SQLite file | SQLite file on its own volume, **continuously replicated** to a second place | PostgreSQL, provided by the operator ([`forest.md`](forest.md) §3) |
 | Availability | Stops with the machine; restored from a backup | One node; restarts in seconds; documented recovery point and time | No single point of failure; rolling updates without interruption |
 | TLS | Built in | Built in, or a proxy | The cluster's ingress |
 | Master key | A file or the environment | A container secret | The platform's secret manager |
@@ -159,24 +159,16 @@ The built-in listener speaks TLS 1.3 only, in both modes.
 
 ## 4. forest: designed, not built
 
-**Status:** decided — step 3, as a design. Where its state goes is **open** until then.
+**Status:** decided — step 3, as a design: [`forest.md`](forest.md). Not built.
 
-forest runs several nodes that hold no state. What must leave the process memory:
+forest runs several nodes that hold no state, on a PostgreSQL database the operator
+provides. Its design has its own document: what leaves a node's memory, where it goes and
+on which measurements, how a server starts, is updated and fails, what is delivered.
 
-| State today | Must become |
-| --- | --- |
-| Passkey ceremonies in progress (in memory) | Shared between nodes, with an expiry, and single use guaranteed whichever node answers |
-| Sign-in requests of applications and their codes (in memory) | Same |
-| Sessions | Already in the database (a hash only) |
-| Signing keys, the VSID secret | Already in the database, encrypted; nodes must learn of a rotation |
-| Rate limits (in memory, per client address) | Per node as a floor, and a global limit in front |
-| Master key | Given to every node by the platform's secret manager |
-
-Which database forest stands on, and where the temporary state goes, is decided with its
-design, on measurements: speed, security, compatibility with what companies already run,
-operating cost. The hypothesis to test is PostgreSQL alone; a shared cache next to it is the
-alternative. One option is already rejected: ceremony state in an encrypted cookie, because
-single use cannot be enforced without server state.
+Two options were considered and rejected for the state nodes must share. In an encrypted
+cookie: single use cannot be enforced without server state. In a cache next to the
+database: one more service to run and to secure, for a load the database holds
+([`forest.md`](forest.md) §3).
 
 ---
 
