@@ -94,13 +94,21 @@ two other editions ([`editions.md`](editions.md) §2). forest does not add a sec
 
 - The tables have the same shapes in both: identifiers as text, times as Unix seconds in
   64-bit integers, encrypted values as bytes. No type exists in one database only.
-- A statement is written once. The few places where the two databases need different text
-  (the schema itself; the smaller of two values) are a named list in one file, and the
-  list is short enough to be read in a review.
+- A statement is written once, and **no statement differs between the two databases**:
+  only the schema does, in the names of three types (bytes, 64-bit integers, a counter).
+  Statements keep to what both understand: a truth value is returned as 0 or 1, never as
+  a boolean, and the smaller of two values is written as a comparison.
 - What encrypts, derives a key, builds a lookup index or decides is above the statements
   and has one implementation.
 - **Every test of the store runs on both databases in CI.** A release of `core` in which
   a test passes on one and fails on the other does not exist.
+- Editions on SQLite do not carry the PostgreSQL driver: it is a compile-time option of
+  the store, which forest alone turns on.
+
+This was checked on a prototype before being written here: with the store of `core`
+moved to one set of statements (three of some ninety had to be rewritten, as above), the
+whole test suite of `core`, the sign-in flows included, passes on SQLite and on
+PostgreSQL 18. The prototype is not the implementation, which is still to come.
 
 ### The state shared between nodes
 
