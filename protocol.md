@@ -350,8 +350,10 @@ server from what the person types (a domain) through `/.well-known/openid-config
 relying party is registered for, no others. There is no `claims` parameter.
 
 `state` and `nonce` are returned unchanged. `prompt=login` requires a passkey ceremony more
-recent than the request; `max_age` compares with the time of the last ceremony;
-`prompt=none` is answered without any page; unknown parameters are ignored.
+recent than the request. `max_age` is the age the last ceremony may have when the person
+answers, if it was done before the request; a ceremony done for the request always
+satisfies it, however long the person then takes. `prompt=none` is answered without any
+page; unknown parameters are ignored.
 
 ### The person's answer
 
