@@ -329,19 +329,26 @@ upgrades the database it finds.
 
 ### How releases and updates are produced
 
-**Status:** decided — step 1. Today a release is three manual edits that must agree (the
-manifest's version, the changelog, the tag), and update pull requests come from Dependabot.
+**Status:** decided — step 1; in place since 2026-11-25. Before, a release was three manual
+edits that had to agree (the manifest's version, the changelog, the tag), and update pull
+requests came from Dependabot.
 
 - **Every repository releases by a semver tag `vX.Y.Z` on `main`, created by CI**, never by
   hand: release-please keeps a release pull request up to date (version, changelog), and
   merging it creates the tag and the release. A changelog generator alone (git-cliff) was the
   alternative; it leaves the release itself to script.
-- What publishes (image, binaries) runs in the same workflow as the release: a tag pushed
-  with the default token triggers nothing else.
+- What publishes (image, binaries) runs on the new tag: a tag created with the default token
+  triggers nothing, so the release workflow starts the repository's CI there itself
+  (`workflow_dispatch`, the one event that token may start), and CI's tag-only jobs publish.
 - **Renovate opens the update pull requests**, from a preset shared by the organisation, and
   never merges. The cryptography library and the core are pinned **by tag**; the interface
   version a server embeds is pinned by tag and commit together, and the server builds it
   from source at that commit: nothing binary is trusted.
+- **The pace is the owner's.** A version changes only when the owner merges a release pull
+  request. Before 1.0, a feature or a fix makes a patch and a breaking change a minor. An
+  update from outside the project comes once a week per repository and makes no release of
+  its own; a security fix comes at once and is released. A release of crypto, the core or the
+  interface reaches what pins it the next Monday (sooner on request), as a fix.
 
 ```text
 crypto vX ──▶ core ──▶ core vY ──┐
