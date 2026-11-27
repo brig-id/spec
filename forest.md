@@ -5,14 +5,19 @@
 > starts, is updated and fails. What the three editions are, and what separates them, is in
 > [`editions.md`](editions.md) §2. Statuses are explained in the [README](README.md).
 
-Nothing in this document is built. A section marked *decided* is a commitment about the
-design; a section marked *open* says what is not settled, and why.
+The server is built, and each section says what of it is: the nodes, their state in
+PostgreSQL, the initialisation, updates, the import of a smaller edition, an image and a
+compose file. Not built: the Helm chart, the load test, a rotation of the master key
+without interruption. A section marked *decided* is a commitment about the design; a
+section marked *open* says what is not settled, and why. The code is in `core`
+(`brigid-server/src/nodes.rs`, `brigid-store/src/nodes.rs`, `kept.rs`, `import.rs`) and in
+`server-forest`, whose tests start real nodes on a real database.
 
 ---
 
 ## 1. What forest is
 
-**Status:** decided — step 3, as a design. Not built.
+**Status:** built (the executable `forest`, in `server-forest`).
 
 forest is a brig·id server made of several identical **nodes**. A node holds nothing that
 another node needs: any node answers any request, a node can stop in the middle of a
@@ -54,10 +59,10 @@ sign-in without that sign-in being lost, and an update replaces the nodes one by
 
 ## 2. What leaves a node's memory
 
-**Status:** decided — step 3, as a design. Not built: today every line of the first column
-is true of the single node that seedling and grove run.
+**Status:** built. Every line of the first column is true of the single node that seedling
+and grove run, every line of the second of a node of forest.
 
-| State | In a single node today | In forest |
+| State | In a single node | In forest |
 | --- | --- | --- |
 | Passkey ceremonies in progress (registration, sign-in, confirmation) | In memory, 5 minutes | In the database (§3): shared, with an expiry, taken once whichever node answers |
 | Sign-in requests of applications waiting for the person | In memory, 10 minutes | Same |
@@ -80,7 +85,8 @@ error being raised.
 
 ## 3. Where the state goes: PostgreSQL, and nothing else
 
-**Status:** decided — step 3, as a design, on the measurements below. Not built.
+**Status:** built, on the measurements below. Not built: the writes of a request grouped
+in one transaction.
 
 Everything a node shares with the others is in one PostgreSQL database. There is no cache
 and no queue next to it.
@@ -105,10 +111,10 @@ two other editions ([`editions.md`](editions.md) §2). forest does not add a sec
 - Editions on SQLite do not carry the PostgreSQL driver: it is a compile-time option of
   the store, which forest alone turns on.
 
-This was checked on a prototype before being written here: with the store of `core` moved to
-one set of statements (three of about a hundred had to be rewritten, as above), the whole
-test suite of `core`, the sign-in flows included, passes on SQLite and on PostgreSQL 18. The
-prototype is not the implementation, which is still to come.
+It is how the store of `core` is written: three of about a hundred statements had to be
+rewritten, as above, and the whole test suite of `core`, the sign-in flows included, runs
+in CI on SQLite and on the oldest and the newest supported PostgreSQL, with the
+short-lived state in memory and in the database.
 
 ### The state shared between nodes
 
@@ -125,7 +131,7 @@ an expiry.
   of a passkey challenge. The identifier stored is the SHA3-256 hash of the one the
   browser or the application holds, as for sessions: reading the table gives nothing that
   can be presented.
-- **Expired rows** are removed by every node every few seconds. Two nodes doing it at once
+- **Expired rows** are removed by every node every ten seconds. Two nodes doing it at once
   is harmless.
 - **`pending` is an unlogged table.** Its rows live minutes and are worth nothing after a
   crash. An unlogged table is not written to the database's log: it costs less, and after
@@ -204,21 +210,27 @@ Time a whole sign-in waited for the database, all its requests added, in millise
 
 - A version the PostgreSQL project still supports. CI runs the store's tests on the oldest
   and the newest supported versions.
-- Reached over TLS with the server's certificate verified; a node refuses to start on a
-  connection without TLS unless the operator wrote that choice in the configuration.
+- Reached over TLS with the server's certificate verified: an address that names no mode
+  gets the strictest, and a node refuses an address that asks for less unless the operator
+  wrote that choice in the configuration (`database.allow_unverified`). The address is a
+  file the platform mounts, and is never repeated in an error: it holds a password.
 - One role for the nodes, which cannot change the schema; another for the initialisation
-  (§5), which can.
+  (§5), which can, and which gives the first its rights each time it runs
+  (`forest init --grant <role>`): to read and write rows, and nothing else.
+- A request waits five seconds for a connection, then fails: while the database fails
+  over, a node says it is not ready instead of keeping every request open.
 - A primary that accepts writes. forest does not read from standbys: a session written a
   moment ago must be found by the next request.
 - Unlogged tables available. Where a managed service does not offer them, `pending` is an
-  ordinary table (a setting of the initialisation): measured above, it holds the peak too,
+  ordinary table (`forest init --logged-pending`): measured above, it holds the peak too,
   at a higher cost for the database.
 
 ---
 
 ## 4. Around the nodes
 
-**Status:** decided — step 3, as a design. Not built.
+**Status:** built, except the values of the ingress's rate limit, which come with the
+load test (§10).
 
 - **TLS** ends at the cluster's ingress. A node listens in plain HTTP inside the cluster
   and has no certificate and no ACME client. The ingress must **replace** the
@@ -231,26 +243,29 @@ Time a whole sign-in waited for the database, all its requests added, in millise
   already does.
 - **The cap on ceremonies in progress.** A single node refuses new ceremonies beyond
   10,000 held in memory. In forest the count is read from the database by each node every
-  few seconds, and new ceremonies are refused while it is over the cap: a flood fills a
+  five seconds, and new ceremonies are refused while it is over the cap: a flood fills a
   table up to a bound, not the database.
 - **The master key** is a file mounted in every node by the platform (a Kubernetes secret,
   an external-secrets operator, a CSI driver, an agent's sidecar): `BRIGID_MASTER_KEY_FILE`,
   as in grove. The database's credentials arrive the same way. forest contains no client
   for any secret manager: nothing more to audit, and nothing to choose.
-- **Probes.** Liveness: the process answers. Readiness: the database answers, the schema
-  is the one this version expects (§6), the keys are loaded. A node that receives the
-  signal to stop fails its readiness first, then finishes the requests it has.
+- **Probes.** Liveness (`GET /health`): the process answers. Readiness (`GET /ready`): the
+  database answers and the schema is one this version serves on (§6); otherwise 503, with
+  the reason. A node that receives the signal to stop fails its readiness first, keeps
+  answering for a few seconds (five, a setting), then finishes the requests it has.
 - **Clocks.** Expiry times are written and compared by nodes. Nodes must be synchronised
   to within a few seconds, which the validity of tokens already asks.
 - **Operator commands** are the same as in the other editions and act on the database.
   They are run in a node's container or as a job of the cluster; the nodes see their
-  effect at the next request, or at their next reading of the keys (§6).
+  effect at the next request, or at their next reading of the keys (§6). Two do not apply:
+  `backup` and `restore` are the copy of a SQLite file, and forest refuses them, naming
+  the database's own tools.
 
 ---
 
 ## 5. First start
 
-**Status:** decided — step 3, as a design. Not built.
+**Status:** built.
 
 A single-node server creates what is missing when it starts: the schema, the VSID secret,
 the first signing key, the setup link of the first administrator. Several nodes starting
@@ -267,14 +282,14 @@ the nodes start:
    ([`model.md`](model.md) §7).
 
 A node that finds no schema, a schema it does not know, no VSID secret or no signing key
-is not ready and says why. It never repairs.
+is not ready and says why. It never repairs: started before `forest init`, it waits a
+minute for it, then ends.
 
 ---
 
 ## 6. Updates and rotations
 
-**Status:** decided — step 3, as a design, except the rotation of the master key, which is
-**open**. Not built.
+**Status:** built, except the rotation of the master key, which is **open**.
 
 ### Rolling updates
 
@@ -286,8 +301,12 @@ update must not skip a version.
 
 - Migrations are run by `forest init`, as a job before the first new node starts, never by
   a node.
-- A node knows the oldest and the newest schema it can work with. Outside that range it is
-  not ready: an old node left behind stops receiving requests instead of writing wrongly.
+- A node is ready when the schema has every step its version knows, and its version is
+  not older than the oldest one the last `forest init` said still serves. That second
+  half is one number in the code, written into the database by `forest init`: a migration
+  that keeps to the rule leaves it alone; one that cannot raises it, and from the moment
+  that `forest init` has run the older nodes stop being ready instead of writing wrongly.
+  A test of `core` fails at each new schema step until its author has said which it is.
 - The short-lived state needs no migration: a new shape gets a new kind, and rows of the
   old kind expire within minutes.
 
@@ -320,7 +339,9 @@ window, as in the other editions.
 
 ## 7. What fails, and what happens
 
-**Status:** decided — step 3, as a design. Not built.
+**Status:** built. The first three lines and the fifth are tried in CI on a deployed
+forest: a node replaced, a node killed, the database killed, while a person signs in with
+a passkey in a real browser (`server-forest`, `tests/deploy/`).
 
 | Failure | Effect |
 | --- | --- |
@@ -336,34 +357,57 @@ window, as in the other editions.
 
 ## 8. What is delivered
 
-**Status:** decided — step 3, as a design. Not built.
+**Status:** the image, the compose file and the integration guide are built. The Helm
+chart is decided — step 3, not built.
 
 - **An image**: the server as one static executable in a minimal image, like grove's, with
   the interface inside. It runs as a user without privileges and writes nothing to disk.
+- **A compose file**: a PostgreSQL database, the initialisation, two nodes, and a proxy
+  that holds the certificate and sends requests to the nodes that are ready, on one
+  machine. It was not in the first design. It is how forest is tried in an afternoon, how
+  it is tested (deployed, then updated node by node while requests keep coming), and what
+  a grove becomes on the machine it already has. One machine is still one machine: no
+  single point of failure needs the nodes on several, and a database with a standby.
 - **A Helm chart**: the nodes (two at least, spread over the cluster's machines, with a
   disruption budget), the initialisation job before each installation and update, the
   service, and as options the route through the ingress, a network policy that lets nodes
   reach the database and nothing else, and what a metrics collector needs. The chart
   creates no database and no secret.
 - **An integration guide**: what to provide (the database and its two roles, the key, the
-  name), the ingress's settings (TLS, the header, the global rate limit and its values),
-  sizing from the measurements of §3, updates, what to watch.
+  name), what stands in front (TLS, the header, readiness, the global rate limit), updates,
+  what to watch. Its sizes and the values of the rate limit come from the load test (§10).
 - A cluster is not required by the server itself: a node is a container that needs a
-  database and a file. The chart is what the project tests.
+  database and two files.
 
-Kubernetes is the one platform the project packages and tests for.
+Kubernetes is the one cluster the project will package for.
 
 ---
 
-## 9. Coming from grove
+## 9. Coming from seedling or grove
 
-**Status:** decided — step 3, as a design; the export and import it needs are decided —
-after v1 ([`editions.md`](editions.md) §5).
+**Status:** built (`forest import`).
 
-A grove becomes a forest by an export and an import: a SQLite backup, which moves a
-seedling to a grove, cannot be restored into PostgreSQL. The tables have the same shapes in
-both databases (§3), so an import is a copy of rows, re-encrypted under the target's master
-key; the domain does not change. The project's own server follows this path.
+A seedling or a grove becomes a forest by a backup and an import: a SQLite backup, which
+moves a seedling to a grove, cannot be restored into PostgreSQL.
+
+- `forest import <backup>` copies every row of the backup into the database of a forest
+  that was initialised and has no account yet: accounts, passkeys, identities, sites,
+  settings, sessions, the VSID secret and the signing keys. One transaction: an import
+  that fails changes nothing.
+- **Rows are copied as they are.** The tables have the same shapes in both databases (§3)
+  and what is encrypted is encrypted the same way, so nothing is decrypted on the way: the
+  forest runs under the **same master key** as the server it comes from, and on the **same
+  domain**, to which passkeys are bound. The first design re-encrypted under a new key at
+  import; it would have put every secret of the server in clear in the memory of a
+  one-time command for no gain, since the key can be rotated afterwards like any other.
+- Identifiers at applications, tokens already issued, passkeys and open sessions stay
+  valid. What a single node kept in its memory (sign-ins in progress) is not in its
+  database: those start again.
+- A backup made by an earlier version is brought to the current schema first, on a private
+  copy. The certificate a single node obtained for itself is not imported.
+
+Then the old server is stopped: two servers must not answer for one domain. The project's
+own server follows this path.
 
 ---
 
