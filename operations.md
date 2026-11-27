@@ -193,6 +193,10 @@ seedling rotate-oidc-key      # reads BRIGID_MASTER_KEY_FILE / BRIGID_MASTER_KEY
    keeps verifying the tokens it signed for a grace period of two hours (tokens live one).
 3. A retired key past its grace period is deleted at a later start.
 
+In forest there is no restart: `forest rotate-oidc-key`, in any node, and every node reads
+the keys again within a minute, publishes the new one at once and signs with it five
+minutes after its creation ([`forest.md`](forest.md) §6).
+
 The `kid` of a key is its RFC 7638 JWK thumbprint.
 *Implementation:* [`server-seedling/src/main.rs`](https://github.com/brig-id/server-seedling/blob/main/src/main.rs) — `rotate_oidc_key()`, `load_oidc_keys()`;
 [`brigid-store/src/store.rs`](https://github.com/brig-id/core/blob/main/crates/brigid-store/src/store.rs) — `add_oidc_signing_key()`, `prune_oidc_keys()`.
@@ -411,8 +415,8 @@ seedling restore /var/backups/brigid/2026-11-25.db  # the server stopped
 - What happened after the backup is gone: accounts created, passkeys added, sessions opened
   since. Identifiers at applications do not change.
 - **This is how a server moves between seedling and grove** ([`editions.md`](editions.md)
-  §5): a backup of one, restored into the other. Moving to forest needs an export and an
-  import instead, decided — after v1.
+  §5): a backup of one, restored into the other. Moving to forest is the same backup,
+  imported: `forest import` ([`forest.md`](forest.md) §9).
 
 ### Limits
 

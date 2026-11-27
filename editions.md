@@ -66,7 +66,7 @@ what an outage costs.**
 | --- | --- | --- | --- |
 | For | Oneself, a family, a test | A community, an association, a public server | A company |
 | Run by | One person | A volunteer or a small team | A platform team |
-| Deliverable | One executable | One container image, a compose file | Stateless containers, a chart, an integration guide |
+| Deliverable | One executable | One container image, a compose file | Stateless containers, a compose file, a chart, an integration guide |
 | Needs | Nothing but itself | A container runtime | A cluster and a database |
 | Storage | SQLite file | SQLite file on its own volume, **continuously replicated** to a second place | PostgreSQL, provided by the operator ([`forest.md`](forest.md) §3) |
 | Availability | Stops with the machine; restored from a backup | One node; restarts in seconds; documented recovery point and time | No single point of failure; rolling updates without interruption |
@@ -179,12 +179,14 @@ The built-in listener speaks TLS 1.3 only, in both modes.
 
 ---
 
-## 4. forest: designed, not built
+## 4. forest: several nodes
 
-**Status:** decided — step 3, as a design: [`forest.md`](forest.md). Not built.
+**Status:** built ahead of step 3, which asked for its design only: the server, an image
+and a compose file ([`forest.md`](forest.md) says what of it is). Not built: the Helm
+chart, the load test, a rotation of the master key without interruption.
 
 forest runs several nodes that hold no state, on a PostgreSQL database the operator
-provides. Its design has its own document: what leaves a node's memory, where it goes and
+provides. It has its own document: what leaves a node's memory, where it goes and
 on which measurements, how a server starts, is updated and fails, what is delivered.
 
 Two options were considered and rejected for the state nodes must share. In an encrypted
@@ -196,8 +198,8 @@ database: one more service to run and to secure, for a load the database holds
 
 ## 5. Moving between editions
 
-**Status:** decided — step 2 for seedling and grove, in progress (core#94); decided — after
-v1 for forest.
+**Status:** decided — step 2 for seedling and grove, in progress (core#94); built for
+forest.
 
 **The server's domain cannot change in a move**: a passkey is bound to the domain that
 created it. Identifiers at applications survive: they depend on the VSID secret and on the
@@ -224,13 +226,12 @@ Nothing is re-encrypted and nothing is converted: the target reads the file as t
 wrote it. The same two commands are how any seedling or grove is backed up and restored
 when nothing moves.
 
-### To forest: an export
+### To forest: an import
 
 forest stores its data in PostgreSQL ([`forest.md`](forest.md) §3), so a SQLite file cannot
-be restored into it. Coming from grove needs an export and an import of the server's data
-(accounts, passkeys, identities, the VSID secret, the signing keys), encrypted, re-encrypted
-under the target's master key at import. *Decided — after v1*: it is needed only once forest
-is built.
+be restored into it. `forest import` copies the rows of a backup of a seedling or a grove
+into a forest that has no account yet, as they are: the same master key, the same domain,
+and nothing changes for the people and the sites ([`forest.md`](forest.md) §9).
 
 ---
 
