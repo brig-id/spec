@@ -304,9 +304,9 @@ For whoever cuts a release:
 
 | | |
 |---|---|
-| Publishing a tag deploys it within minutes | The production gate is the merge of the release pull request, not a later step |
+| Publishing a release deploys it within minutes | The production gate is the release workflow, started by hand; its last step publishes the image, then the tag |
 | Undoing a release | Publish a newer version. Deleting a tag does not bring the previous one back, and a migrated database is not migrated back: the backup of step 4 is the way back |
-| A version that does not start | Rolled back automatically; the server stays on the previous version. Fix forward with a new tag |
+| A version that does not start | Rolled back automatically; the server stays on the previous version. Fix forward with a new release |
 | What may be tagged | Only a commit that reached `main` through a pull request |
 
 Other operators choose their own policy. Following tags automatically suits a small server;
@@ -329,31 +329,44 @@ upgrades the database it finds.
 
 ### How releases and updates are produced
 
-**Status:** decided — step 1; in place since 2026-11-25. Before, a release was three manual
-edits that had to agree (the manifest's version, the changelog, the tag), and update pull
-requests came from Dependabot.
+**Status:** decided — step 1; in place since 2026-11-27. From 2026-11-25 to that day every
+repository released on its own (release-please, a release pull request per repository), and
+a release of crypto, the core or the interface was carried to the servers by an update pull
+request: a change that crossed repositories took a chain of releases to reach a server, most
+of them with nothing in them. Before that, a release was three manual edits that had to
+agree (the manifest's version, the changelog, the tag).
 
-- **Every repository releases by a semver tag `vX.Y.Z` on `main`, created by CI**, never by
-  hand: release-please keeps a release pull request up to date (version, changelog), and
-  merging it creates the tag and the release. A changelog generator alone (git-cliff) was the
-  alternative; it leaves the release itself to script.
-- What publishes (image, binaries) runs on the new tag: a tag created with the default token
-  triggers nothing, so the release workflow starts the repository's CI there itself
-  (`workflow_dispatch`, the one event that token may start), and CI's tag-only jobs publish.
-- **Renovate opens the update pull requests**, from a preset shared by the organisation, and
-  never merges. The cryptography library and the core are pinned **by tag**; the interface
-  version a server embeds is pinned by tag and commit together, and the server builds it
-  from source at that commit: nothing binary is trusted.
-- **The pace is the owner's.** A version changes only when the owner merges a release pull
-  request. Before 1.0, a feature or a fix makes a patch and a breaking change a minor. An
-  update from outside the project comes once a week per repository and makes no release of
-  its own; a security fix comes at once and is released. A release of crypto, the core or the
-  interface reaches what pins it the next Monday (sooner on request), as a fix.
+- **Only the servers are released**, by a semver tag `vX.Y.Z` on a commit of `main`. The
+  cryptography library, the core and the interface are what a server is built from; they
+  have no release of their own.
+- **A server follows them at a commit, not at a version.** Its lock file holds the commit of
+  the cryptography library and of the core; its CI file holds the commit of the interface,
+  which the server builds from source at that commit: nothing binary is trusted. A commit
+  followed is always a commit of the followed repository's `main`. What a released server is
+  made of is therefore four commits, listed in the notes of the release.
+- **A change is tested with the other repositories before it is merged.** The CI of each
+  repository builds a server from its change and the others, taken at their `main`, or at
+  the branch of the same name when the change spans repositories, and runs the suites of a
+  whole server: the servers' own tests, the interface's and the demonstration site's in a
+  browser. One change is one pull request per repository.
+- **A release is asked for by the owner, by hand**: nothing is released by a merge. The
+  release workflow refuses a commit whose checks are not green, computes the version and the
+  notes from what was merged since the last release in the four repositories, builds and
+  tests again, publishes the image and the binaries, and **creates the tag last**: a release
+  that fails leaves no tag. When nothing changed for the people who run the server, there is
+  no release unless it is forced. A release pull request, and a changelog file kept in the
+  repository, were the alternatives: each costs a commit per release for what the tag and its
+  notes already say.
+- **The version is the tag.** No file of the repository holds it; the release build writes it
+  into what it compiles. Before 1.0, a release is a patch and a breaking change a minor.
+- **Renovate opens the update pull requests** for what comes from outside the project, from a
+  preset shared by the organisation, once a week per repository, and never merges; a security
+  fix comes at once. It proposes nothing for the project's own repositories.
 
 ```text
-crypto vX ──▶ core ──▶ core vY ──┐
-                                 ├──▶ server ──▶ server vZ ──▶ image, binaries
-app vW ──────────────────────────┘
+crypto ──▶ core ──┐
+                  ├──▶ server (a commit of each) ──by hand──▶ server vZ ──▶ image, binaries
+app ──────────────┘
 ```
 
 ---
